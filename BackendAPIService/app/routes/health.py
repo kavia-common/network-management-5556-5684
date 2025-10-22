@@ -7,4 +7,5 @@ blp = Blueprint("Healt Check", "health check", url_prefix="/", description="Heal
 @blp.route("/")
 class HealthCheck(MethodView):
     def get(self):
+        """Basic liveness endpoint."""
         return {"message": "Healthy"}

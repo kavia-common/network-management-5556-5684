@@ -1,19 +1,59 @@
 from flask import Flask
 from flask_cors import CORS
-from .routes.health import blp
 from flask_smorest import Api
 
-
-app = Flask(__name__)
-app.url_map.strict_slashes = False
-CORS(app, resources={r"/*": {"origins": "*"}})
-app.config["API_TITLE"] = "My Flask API"
-app.config["API_VERSION"] = "v1"
-app.config["OPENAPI_VERSION"] = "3.0.3"
-app.config['OPENAPI_URL_PREFIX'] = '/docs'
-app.config["OPENAPI_SWAGGER_UI_PATH"] = ""
-app.config["OPENAPI_SWAGGER_UI_URL"] = "https://cdn.jsdelivr.net/npm/swagger-ui-dist/"
+from app.config import Config
+from app.db import Database
+from app.utils.errors import register_error_handlers
+from .routes.health import blp as health_blp
+from .resources.devices import blp as devices_blp
 
 
-api = Api(app)
-api.register_blueprint(blp)
+def create_app() -> Flask:
+    """Create and configure the Flask application with API and DB."""
+    app = Flask(__name__)
+    app.url_map.strict_slashes = False
+    CORS(app, resources={r"/*": {"origins": "*"}})
+
+    # Load config
+    cfg = Config()
+    app.config["API_TITLE"] = cfg.API_TITLE
+    app.config["API_VERSION"] = cfg.API_VERSION
+    app.config["OPENAPI_VERSION"] = cfg.OPENAPI_VERSION
+    app.config["OPENAPI_URL_PREFIX"] = cfg.OPENAPI_URL_PREFIX
+    app.config["OPENAPI_SWAGGER_UI_PATH"] = cfg.OPENAPI_SWAGGER_UI_PATH
+    app.config["OPENAPI_SWAGGER_UI_URL"] = cfg.OPENAPI_SWAGGER_UI_URL
+    app.config["PING_TIMEOUT_MS"] = cfg.PING_TIMEOUT_MS
+
+    # Init API
+    api = Api(app)
+
+    # Init DB
+    db = Database(
+        uri=cfg.MONGODB_URI,
+        db_name=cfg.MONGODB_DB_NAME,
+        tls=cfg.MONGODB_TLS,
+        username=cfg.MONGODB_USER,
+        password=cfg.MONGODB_PASSWORD,
+    )
+    try:
+        db.connect()
+    except Exception as e:
+        # Delay raising to allow health endpoint to be used to detect DB issues; keep app running.
+        app.logger.exception("Failed to connect to MongoDB at startup: %s", e)
+
+    # Store db instance in app extensions
+    app.extensions["db_instance"] = db
+
+    # Register error handlers
+    register_error_handlers(app)
+
+    # Register blueprints
+    api.register_blueprint(health_blp)
+    api.register_blueprint(devices_blp)
+
+    return app
+
+
+# Expose a default app instance for simple runners
+app = create_app()
