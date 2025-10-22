@@ -91,15 +91,29 @@ All device responses map Mongo `_id` to `id` and include `created_at`, `updated_
 
 Development:
 
+1) Configure environment
+   - Copy `.env.example` to `.env` and fill in values (at minimum MONGO_URI).
+
+2) Install dependencies
+```
+pip install -r requirements.txt
+```
+
+3) Start server
 ```
 export FLASK_APP=run.py
 export FLASK_ENV=development
-# Ensure MONGO_URI is set in your environment
+# Optionally: export variables from your .env if your environment doesn't auto-load it
+# e.g., on Linux: set -a; source .env; set +a
 python run.py
 ```
 
-The API docs are available under `/docs`. The generated OpenAPI JSON is written to `interfaces/openapi.json`. To regenerate:
+Preview links:
+- API base: http://localhost:3001
+- API docs (Swagger UI): http://localhost:3001/docs
+- OpenAPI JSON: http://localhost:3001/openapi.json
 
+The generated OpenAPI JSON file is also written to `interfaces/openapi.json`. To regenerate from the running app context:
 ```
 python BackendAPIService/generate_openapi.py
 ```
