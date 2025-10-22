@@ -23,7 +23,15 @@ def create_app() -> Flask:
     app.config["OPENAPI_SWAGGER_UI_PATH"] = ""
     app.config["OPENAPI_SWAGGER_UI_URL"] = "https://cdn.jsdelivr.net/npm/swagger-ui-dist/"
 
+    # Define OpenAPI tags for better documentation structure
+    openapi_tags = [
+        {"name": "Health", "description": "Health check route"},
+        {"name": "Devices", "description": "CRUD operations for devices and reachability checks"},
+    ]
+
     api = Api(app)
+    # Expose tags for swagger UI
+    api.spec.tags = openapi_tags
 
     # Register blueprints
     api.register_blueprint(health_blp)
