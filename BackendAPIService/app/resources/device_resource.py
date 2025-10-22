@@ -1,12 +1,11 @@
 from flask_smorest import Blueprint
 from flask.views import MethodView
 from flask import request, jsonify, current_app
-from bson.errors import InvalidId
-from pymongo.errors import DuplicateKeyError, PyMongoError
 
 from ..services.device_service import (
     list_devices, create_device, get_device, update_device, delete_device, ping_device
 )
+from ..db import DuplicateIPError
 
 blp = Blueprint(
     "Devices",
@@ -41,9 +40,9 @@ class DevicesCollection(MethodView):
         try:
             data, meta = list_devices(filters, page=page, page_size=page_size)
             return jsonify({"data": data, "meta": meta}), 200
-        except PyMongoError as exc:
+        except Exception as exc:
             current_app.logger.error("List devices error: %s", exc)
-            return jsonify({"error": {"code": 500, "status": "Internal Server Error", "message": "Database error"}}), 500
+            return jsonify({"error": {"code": 500, "status": "Internal Server Error", "message": "Server error"}}), 500
 
     def post(self):
         """
@@ -56,11 +55,11 @@ class DevicesCollection(MethodView):
             return jsonify({"data": device}), 201
         except ValueError as ve:
             return jsonify({"error": {"code": 422, "status": "Unprocessable Entity", "message": str(ve)}}), 422
-        except DuplicateKeyError:
+        except DuplicateIPError:
             return jsonify({"error": {"code": 409, "status": "Conflict", "message": "Device with this IP already exists"}}), 409
-        except PyMongoError as exc:
+        except Exception as exc:
             current_app.logger.error("Create device error: %s", exc)
-            return jsonify({"error": {"code": 500, "status": "Internal Server Error", "message": "Database error"}}), 500
+            return jsonify({"error": {"code": 500, "status": "Internal Server Error", "message": "Server error"}}), 500
 
 
 @blp.route("/<string:device_id>")
@@ -72,11 +71,11 @@ class DeviceItem(MethodView):
             if not device:
                 return jsonify({"error": {"code": 404, "status": "Not Found", "message": "Device not found"}}), 404
             return jsonify({"data": device}), 200
-        except (ValueError, InvalidId):
+        except ValueError:
             return jsonify({"error": {"code": 400, "status": "Bad Request", "message": "Invalid ID"}}), 400
-        except PyMongoError as exc:
+        except Exception as exc:
             current_app.logger.error("Get device error: %s", exc)
-            return jsonify({"error": {"code": 500, "status": "Internal Server Error", "message": "Database error"}}), 500
+            return jsonify({"error": {"code": 500, "status": "Internal Server Error", "message": "Server error"}}), 500
 
     def put(self, device_id: str):
         """Update a device by ID."""
@@ -88,11 +87,11 @@ class DeviceItem(MethodView):
             return jsonify({"data": updated}), 200
         except ValueError as ve:
             return jsonify({"error": {"code": 422, "status": "Unprocessable Entity", "message": str(ve)}}), 422
-        except DuplicateKeyError:
+        except DuplicateIPError:
             return jsonify({"error": {"code": 409, "status": "Conflict", "message": "Device with this IP already exists"}}), 409
-        except PyMongoError as exc:
+        except Exception as exc:
             current_app.logger.error("Update device error: %s", exc)
-            return jsonify({"error": {"code": 500, "status": "Internal Server Error", "message": "Database error"}}), 500
+            return jsonify({"error": {"code": 500, "status": "Internal Server Error", "message": "Server error"}}), 500
 
     def delete(self, device_id: str):
         """Delete a device by ID."""
@@ -101,11 +100,11 @@ class DeviceItem(MethodView):
             if not deleted:
                 return jsonify({"error": {"code": 404, "status": "Not Found", "message": "Device not found"}}), 404
             return jsonify({"message": "Deleted"}), 200
-        except (ValueError, InvalidId):
+        except ValueError:
             return jsonify({"error": {"code": 400, "status": "Bad Request", "message": "Invalid ID"}}), 400
-        except PyMongoError as exc:
+        except Exception as exc:
             current_app.logger.error("Delete device error: %s", exc)
-            return jsonify({"error": {"code": 500, "status": "Internal Server Error", "message": "Database error"}}), 500
+            return jsonify({"error": {"code": 500, "status": "Internal Server Error", "message": "Server error"}}), 500
 
 
 @blp.route("/<string:device_id>/ping")
@@ -120,8 +119,8 @@ class DevicePing(MethodView):
             if not updated:
                 return jsonify({"error": {"code": 404, "status": "Not Found", "message": "Device not found"}}), 404
             return jsonify({"data": updated}), 200
-        except (ValueError, InvalidId):
+        except ValueError:
             return jsonify({"error": {"code": 400, "status": "Bad Request", "message": "Invalid ID"}}), 400
-        except PyMongoError as exc:
+        except Exception as exc:
             current_app.logger.error("Ping device error: %s", exc)
-            return jsonify({"error": {"code": 500, "status": "Internal Server Error", "message": "Database error"}}), 500
+            return jsonify({"error": {"code": 500, "status": "Internal Server Error", "message": "Server error"}}), 500

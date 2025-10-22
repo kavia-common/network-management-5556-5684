@@ -2,7 +2,13 @@
 
 The Backend API Service is configured entirely via environment variables.
 
-Required:
+Modes:
+- DB_MODE: 'mongo' (default) or 'memory'
+  - mongo: Uses MongoDB via PyMongo.
+  - memory: Uses an in-memory repository with no persistence.
+  - If DB_MODE='mongo' but MongoDB is not configured or connection fails, the app automatically falls back to 'memory' and logs a warning.
+
+Required when DB_MODE='mongo':
 - MONGODB_URI: MongoDB connection string. Example: mongodb+srv://user:pass@cluster0.example.mongodb.net/?retryWrites=true&w=majority
 - MONGODB_DB_NAME: MongoDB database name. Example: network_devices
 
@@ -12,6 +18,16 @@ Optional:
 - SERVER_PORT: Server port. Default: 3001
 
 Notes:
-- Unique index on devices.ip_address is created at startup.
-- Additional indexes on devices.type and devices.status are also created.
+- Unique constraint on devices.ip_address is enforced in both modes.
+- Indexes for type and status are created in MongoDB mode.
 - If the environment does not allow ping, the status endpoint will return "unknown" without failing.
+- Health endpoint /health returns {"status":"ok","db_mode":"memory|mongo"}.
+
+Examples:
+- Memory mode (no .env required):
+  DB_MODE=memory
+
+- Mongo mode:
+  DB_MODE=mongo
+  MONGODB_URI=mongodb+srv://user:pass@cluster.example.mongodb.net/?retryWrites=true&w=majority
+  MONGODB_DB_NAME=network_devices

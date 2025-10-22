@@ -64,11 +64,14 @@ def create_app() -> Flask:
 
     # Load configuration
     from .config import Config
-    app.config.from_object(Config())
+    cfg = Config()
+    app.config.from_object(cfg)
+    app.config["CONFIG_OBJECT"] = cfg
 
-    # Initialize DB
-    from .db import init_db
+    # Initialize repository/DB
+    from .db import init_db, get_db_mode
     init_db(app)
+    app.logger.info("DB initialized. Mode: %s", get_db_mode())
 
     # Register API and routes
     create_api(app)
@@ -86,6 +89,15 @@ def create_app() -> Flask:
             "message": "OpenAPI docs available at /docs/, spec at /openapi.json.",
             "websocket": "This API does not use websockets.",
         })
+
+    # Enhanced health with db_mode
+    @app.get("/health")
+    def health():
+        """
+        Health check including database mode info.
+        """
+        from .db import get_db_mode
+        return jsonify({"status": "ok", "db_mode": get_db_mode()})
 
     return app
 
