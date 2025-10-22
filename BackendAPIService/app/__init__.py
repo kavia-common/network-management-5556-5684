@@ -10,7 +10,14 @@ from .resources.devices import blp as devices_blp
 
 
 def create_app() -> Flask:
-    """Create and configure the Flask application with API and DB."""
+    """Create and configure the Flask application with API and DB.
+
+    Notes:
+        - DB connection is lazy: no attempt is made at startup. This ensures the
+          app starts even if MongoDB is down or URI is unset.
+        - DB-backed endpoints should handle connection errors and return a clear
+          JSON error response.
+    """
     app = Flask(__name__)
     app.url_map.strict_slashes = False
     CORS(app, resources={r"/*": {"origins": "*"}})
@@ -28,7 +35,7 @@ def create_app() -> Flask:
     # Init API
     api = Api(app)
 
-    # Init DB
+    # Initialize DB wrapper only; do not connect here (lazy connection)
     db = Database(
         uri=cfg.MONGODB_URI,
         db_name=cfg.MONGODB_DB_NAME,
@@ -36,12 +43,6 @@ def create_app() -> Flask:
         username=cfg.MONGODB_USER,
         password=cfg.MONGODB_PASSWORD,
     )
-    try:
-        db.connect()
-    except Exception as e:
-        # Delay raising to allow health endpoint to be used to detect DB issues; keep app running.
-        app.logger.exception("Failed to connect to MongoDB at startup: %s", e)
-
     # Store db instance in app extensions
     app.extensions["db_instance"] = db
 

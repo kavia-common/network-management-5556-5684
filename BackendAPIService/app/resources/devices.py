@@ -17,6 +17,10 @@ blp = Blueprint(
 )
 
 
+def _db_unavailable_response(detail: str = "Database is unavailable"):
+    return error_response(503, "Service Unavailable", {"database": detail})
+
+
 @blp.route("")
 class DeviceList(MethodView):
     """List and create devices."""
@@ -41,8 +45,11 @@ class DeviceList(MethodView):
                 return error_response(400, "Invalid 'status' filter")
             query["status"] = device_status
 
-        docs = [serialize_device(d) for d in db.devices.find(query).sort("created_at")]
-        return {"items": docs, "count": len(docs)}, 200
+        try:
+            docs = [serialize_device(d) for d in db.devices.find(query).sort("created_at")]
+            return {"items": docs, "count": len(docs)}, 200
+        except Exception as e:
+            return _db_unavailable_response(str(e))
 
     def post(self):
         """
@@ -71,6 +78,8 @@ class DeviceList(MethodView):
             return error_response(409, "Device with this ip_address already exists", {"ip_address": "must be unique"})
         except PyMongoError as e:
             return error_response(500, "Database error", {"detail": str(e)})
+        except Exception as e:
+            return _db_unavailable_response(str(e))
 
 
 @blp.route("/<string:device_id>")
@@ -85,10 +94,13 @@ class DeviceDetail(MethodView):
         except ValueError:
             return error_response(400, "Invalid device id")
 
-        doc = db.devices.find_one({"_id": oid})
-        if not doc:
-            return error_response(404, "Device not found")
-        return serialize_device(doc), 200
+        try:
+            doc = db.devices.find_one({"_id": oid})
+            if not doc:
+                return error_response(404, "Device not found")
+            return serialize_device(doc), 200
+        except Exception as e:
+            return _db_unavailable_response(str(e))
 
     def put(self, device_id: str):
         """
@@ -124,6 +136,8 @@ class DeviceDetail(MethodView):
             return error_response(409, "Device with this ip_address already exists", {"ip_address": "must be unique"})
         except PyMongoError as e:
             return error_response(500, "Database error", {"detail": str(e)})
+        except Exception as e:
+            return _db_unavailable_response(str(e))
 
     def delete(self, device_id: str):
         """Delete a device by id."""
@@ -140,6 +154,8 @@ class DeviceDetail(MethodView):
             return {"deleted": True}, 200
         except PyMongoError as e:
             return error_response(500, "Database error", {"detail": str(e)})
+        except Exception as e:
+            return _db_unavailable_response(str(e))
 
 
 @blp.route("/<string:device_id>/ping")
@@ -157,9 +173,12 @@ class DevicePing(MethodView):
         except ValueError:
             return error_response(400, "Invalid device id")
 
-        doc = db.devices.find_one({"_id": oid})
-        if not doc:
-            return error_response(404, "Device not found")
+        try:
+            doc = db.devices.find_one({"_id": oid})
+            if not doc:
+                return error_response(404, "Device not found")
+        except Exception as e:
+            return _db_unavailable_response(str(e))
 
         timeout_ms = request.args.get("timeout_ms", type=int) or request.json.get("timeout_ms") if request.is_json else None
         if timeout_ms is None:
@@ -181,3 +200,5 @@ class DevicePing(MethodView):
             return {"result": {"online": is_online, "output": raw}, "device": serialize_device(updated)}, 200
         except PyMongoError as e:
             return error_response(500, "Database error", {"detail": str(e)})
+        except Exception as e:
+            return _db_unavailable_response(str(e))
