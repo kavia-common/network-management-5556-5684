@@ -20,8 +20,8 @@ pip install -r requirements.txt
 
 Preferred single-URI configuration:
 - MONGODB_URI (preferred)
-  - MongoDB connection URI.
-  - Example: `mongodb://localhost:27017` or `mongodb+srv://<user>:<pass>@cluster0.mongodb.net`
+  - MongoDB connection URI. Defaults to `mongodb://localhost:27017/network` if not provided.
+  - Example: `mongodb://localhost:27017/network` or `mongodb+srv://<user>:<pass>@cluster0.mongodb.net/<db>`
 
 Fallback individual settings (used only if MONGODB_URI is not set):
 - MONGODB_HOST (default: `localhost`)
@@ -31,7 +31,8 @@ Fallback individual settings (used only if MONGODB_URI is not set):
 - MONGODB_OPTIONS (optional, query string without leading `?`, e.g. `replicaSet=rs0&authSource=admin`)
 
 Common settings:
-- MONGODB_DB_NAME (optional, default: `network_devices`)
+- MONGODB_DB_NAME (optional, default: `network`)
+- MONGODB_COLLECTION (optional, default: `device`) — collection used by the app; indexes are created here
 - MONGODB_TLS (optional, `true` enables TLS)
 - MONGODB_CONNECT_TIMEOUT_MS (optional, default: `5000`)
 
@@ -39,8 +40,9 @@ Example `.env` content:
 
 ```
 # Preferred
-MONGODB_URI=mongodb://localhost:27017
-MONGODB_DB_NAME=network_devices
+MONGODB_URI=mongodb://localhost:27017/network
+MONGODB_DB_NAME=network
+MONGODB_COLLECTION=device
 MONGODB_TLS=false
 MONGODB_CONNECT_TIMEOUT_MS=5000
 
@@ -56,7 +58,7 @@ Note: Do not commit your real `.env` file. Provide environment variables via you
 
 ## Database and Indexes
 
-On startup, the app initializes a singleton `MongoClient`, verifies connectivity using `admin.command('ping')`, and ensures indexes on the `devices` collection:
+On startup, the app initializes a singleton `MongoClient`, verifies connectivity using `admin.command('ping')`, and ensures indexes on the `device` collection (or collection specified via `MONGODB_COLLECTION`):
 
 - Unique index on `ip_address` (name: `uniq_ip`)
 - Index on `type` (name: `idx_type`)

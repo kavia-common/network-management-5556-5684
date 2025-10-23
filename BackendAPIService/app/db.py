@@ -12,8 +12,9 @@ _client_lock = threading.Lock()
 _client: Optional[MongoClient] = None
 _db: Optional[Database] = None
 
-DEFAULT_DB_NAME = "network_devices"
-DEVICES_COLLECTION = "devices"
+DEFAULT_DB_NAME = "network"  # Updated default DB name per requirements
+# Devices collection name will be read from env var MONGODB_COLLECTION with default 'device'
+DEVICES_COLLECTION = os.environ.get("MONGODB_COLLECTION", "device")
 
 
 def _env_bool(value: Optional[str]) -> bool:
@@ -77,10 +78,25 @@ def _build_mongo_client() -> Tuple[MongoClient, str]:
     """
     uri_env = os.environ.get("MONGODB_URI")
     if uri_env:
+        # If provided, use env-specified DB name or default to DEFAULT_DB_NAME
         db_name = os.environ.get("MONGODB_DB_NAME", DEFAULT_DB_NAME)
         uri = uri_env
     else:
-        uri, db_name = _build_uri_from_parts()
+        # Set sensible default to mongodb://localhost:27017/network if nothing is provided.
+        # This aligns with the requirement to default to DB 'network'.
+        default_uri = f"mongodb://localhost:27017/{DEFAULT_DB_NAME}"
+        uri = default_uri
+        db_name = DEFAULT_DB_NAME
+        # If individual parts are provided (host/port/etc.), build from them
+        # This preserves existing fallback connection logic
+        if (
+            os.environ.get("MONGODB_HOST")
+            or os.environ.get("MONGODB_PORT")
+            or os.environ.get("MONGODB_USERNAME")
+            or os.environ.get("MONGODB_PASSWORD")
+            or os.environ.get("MONGODB_OPTIONS")
+        ):
+            uri, db_name = _build_uri_from_parts()
 
     # TLS and options: if options not encoded in URI and MONGODB_TLS true, pass tls kwarg
     tls = _env_bool(os.environ.get("MONGODB_TLS"))
@@ -97,11 +113,11 @@ def _build_mongo_client() -> Tuple[MongoClient, str]:
 
 def _ensure_indexes(db: Database) -> None:
     """
-    Ensure required indexes exist for the devices collection:
+    Ensure required indexes exist for the device collection configured via MONGODB_COLLECTION:
       - Unique index on ip_address (name: 'uniq_ip')
       - Non-unique indexes on 'type' and 'status'
     """
-    devices = db[DEVICES_COLLECTION]
+    devices = db[DEVICES_COLLECTION]  # DEVICES_COLLECTION defaults to 'device'
 
     # Unique index on ip_address
     devices.create_index(
@@ -189,8 +205,13 @@ def ping() -> Tuple[bool, Optional[str]]:
 
 # Attempt eager initialization at import time to surface connectivity early but non-fatal.
 try:
-    # Prefer MONGODB_URI presence, but also attempt if host/port are provided
-    if os.environ.get("MONGODB_URI") or os.environ.get("MONGODB_HOST"):
+    # Try initialization if any Mongo-related configuration is present.
+    if (
+        os.environ.get("MONGODB_URI")
+        or os.environ.get("MONGODB_HOST")
+        or os.environ.get("MONGODB_DB_NAME")
+        or os.environ.get("MONGODB_COLLECTION")
+    ):
         get_client()
 except Exception:
     # Avoid crashing import; health endpoint will report down with details.

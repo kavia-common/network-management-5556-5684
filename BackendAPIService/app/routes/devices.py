@@ -8,7 +8,7 @@ from flask.views import MethodView
 from flask_smorest import Blueprint, abort
 from pymongo.errors import DuplicateKeyError
 
-from app.db import get_collection
+from app.db import get_collection, DEVICES_COLLECTION
 from app.schemas import (
     DeviceCreateSchema,
     DeviceUpdateSchema,
@@ -84,7 +84,7 @@ class DevicesList(MethodView):
           { items: [...], total, page, limit }
         - Otherwise returns full array for convenience (legacy behavior).
         """
-        coll = get_collection("devices")
+        coll = get_collection(DEVICES_COLLECTION)
         # pagination params
         page_param = request.args.get("page")
         limit_param = request.args.get("limit")
