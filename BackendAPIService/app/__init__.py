@@ -3,10 +3,8 @@ from flask_cors import CORS
 from flask_smorest import Api
 from .routes import health_blp, devices_blp
 
-# Import db to initialize Mongo indexes on startup when MONGO_URI is provided
-# (import-time side effects trigger get_client if env is configured)
+# Import db to initialize Mongo connection on startup if env is configured
 from . import db as _db  # noqa: F401
-
 
 app = Flask(__name__)
 app.url_map.strict_slashes = False
