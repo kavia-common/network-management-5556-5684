@@ -3,6 +3,14 @@ from flask_cors import CORS
 from flask_smorest import Api
 from .routes import health_blp, devices_blp
 
+# Load environment variables from .env if present
+try:
+    from dotenv import load_dotenv  # type: ignore
+    load_dotenv()
+except Exception:
+    # If python-dotenv is not installed or any error occurs, proceed without failing.
+    pass
+
 # Import db to initialize Mongo connection on startup if env is configured
 from . import db as _db  # noqa: F401
 

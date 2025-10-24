@@ -16,6 +16,8 @@ Install dependencies:
 pip install -r requirements.txt
 ```
 
+Note: The app loads variables from a `.env` file automatically using `python-dotenv` if present.
+
 ## Environment Variables
 
 Preferred single-URI configuration:
@@ -36,7 +38,7 @@ Common settings:
 - MONGODB_TLS (optional, `true` enables TLS)
 - MONGODB_CONNECT_TIMEOUT_MS (optional, default: `5000`)
 
-Example `.env` content:
+Example `.env` content (see `.env.example` for a ready-to-copy template):
 
 ```
 # Preferred
@@ -119,8 +121,6 @@ pip install -r requirements.txt
 ```
 export FLASK_APP=run.py
 export FLASK_ENV=development
-# Optionally: export variables from your .env if your environment doesn't auto-load it
-# e.g., on Linux: set -a; source .env; set +a
 python run.py
 ```
 
@@ -134,9 +134,18 @@ The generated OpenAPI JSON file is also written to `interfaces/openapi.json`. To
 python BackendAPIService/generate_openapi.py
 ```
 
+## Verify MongoDB health
+
+- Ensure MongoDB is reachable at your MONGODB_URI.
+- Start the API as above.
+- Test the DB health endpoint:
+  - curl: `curl -s http://localhost:3001/health/db`
+  - Expected response: `{"status":"ok"}` when the database is reachable.
+  - On failure, you'll get: `{"status":"error","message":"<details>"}` with HTTP 500.
+
 ## Acceptance Criteria Mapping
 
-- Backend reads MongoDB settings from env vars and connects on startup: Implemented in `app/db.py` with `MONGODB_URI` preferred and fallbacks.
+- Backend reads MongoDB settings from env vars and connects on startup: Implemented in `app/db.py` with `MONGODB_URI` preferred and fallbacks; `.env` auto-loaded via `python-dotenv`.
 - Default DB name `network_devices` (or provided DB name): Implemented via DEFAULT_DB_NAME and usage.
 - Indexes created on `ip_address` (unique), `type`, `status`: Ensured in `_ensure_indexes`.
 - Graceful error handling and clear logs if connection fails: `get_client` raises `RuntimeError` with details; health endpoint surfaces errors.

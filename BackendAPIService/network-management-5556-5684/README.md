@@ -10,10 +10,7 @@ Quick links:
 Setup:
 1) Create and configure environment variables
    - Copy BackendAPIService/.env.example to BackendAPIService/.env
-   - Ensure MONGODB_URI is set to a reachable MongoDB instance, or rely on the default `mongodb://localhost:27017/network_devices`.
-   - Optional:
-     - MONGODB_DB_NAME (default: network_devices)
-     - MONGODB_COLLECTION (default: device)
+   - Ensure MONGODB_URI is set to a reachable MongoDB instance (default is mongodb://localhost:27017/network_devices).
 
 2) Install dependencies
    cd BackendAPIService
@@ -23,6 +20,6 @@ Setup:
    python run.py
    The API will listen on http://localhost:3001 (Flask default development server).
 
-Health:
-- Service: GET /
-- Database: GET /health/db -> {"status":"ok"} or {"status":"error","message":"..."}
+Health checks:
+- Service health: GET http://localhost:3001/
+- Database health: GET http://localhost:3001/health/db -> {"status":"ok"} on success
