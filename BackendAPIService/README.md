@@ -22,10 +22,10 @@ Note: The app loads variables from a `.env` file automatically using `python-dot
 
 Preferred single-URI configuration:
 - MONGODB_URI (preferred)
-  - MongoDB connection URI. Defaults to `mongodb://localhost:27017/network_devices` if not provided.
+  - MongoDB connection URI. If not provided, the service will NOT implicitly fall back to localhost unless explicit parts are set.
   - Example: `mongodb://localhost:27017/network_devices` or `mongodb+srv://<user>:<pass>@cluster0.mongodb.net/<db>`
 
-Fallback individual settings (used only if MONGODB_URI is not set):
+Fallback individual settings (used only if MONGODB_URI is not set and at least one part is provided):
 - MONGODB_HOST (default: `localhost`)
 - MONGODB_PORT (default: `27017`)
 - MONGODB_USERNAME (optional)
@@ -143,7 +143,8 @@ python BackendAPIService/generate_openapi.py
 - Test the DB health endpoint:
   - curl: `curl -s http://localhost:3001/health/db`
   - Expected response: `{"status":"ok"}` when the database is reachable.
-  - On failure, you'll get: `{"status":"error","message":"<details>"}` with HTTP 500.
+  - On failure, you'll get: `{"status":"error","message":"<details> | target=mongodb://***@host:port/db tls=false timeout_ms=5000 | hint: ..."}` with HTTP 500.
+    The target fields are masked to avoid leaking credentials and include effective TLS and timeout values.
 
 ## Acceptance Criteria Mapping
 

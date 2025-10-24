@@ -32,5 +32,5 @@ class DBHealth(MethodView):
         if ok:
             # Success format required by task
             return jsonify({"status": "ok"}), 200
-        # Error format and 500 status required by task
+        # Error format and 500 status required by task, include actionable context
         return jsonify({"status": "error", "message": err}), 500

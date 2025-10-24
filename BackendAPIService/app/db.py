@@ -1,7 +1,7 @@
 import os
 import threading
 import urllib.parse
-from typing import Optional, Tuple
+from typing import Optional, Tuple, Dict
 from pymongo import MongoClient, ASCENDING
 from pymongo.collection import Collection
 from pymongo.database import Database
@@ -22,6 +22,40 @@ def _env_bool(value: Optional[str]) -> bool:
     if not value:
         return False
     return value.strip().lower() in {"1", "true", "yes", "y", "on"}
+
+
+def _mask_uri(uri: str) -> str:
+    """
+    Return a masked Mongo URI suitable for logs by removing credentials.
+    Examples:
+      mongodb://user:pass@host:27017/db -> mongodb://***:***@host:27017/db
+      mongodb+srv://user@cluster.mongodb.net/db -> mongodb+srv://***@cluster.mongodb.net/db
+    """
+    try:
+        # Split scheme and the rest
+        if "://" not in uri:
+            return uri
+        scheme, rest = uri.split("://", 1)
+        # Credentials exist if '@' before first '/'
+        at_index = rest.find("@")
+        slash_index = rest.find("/")
+        if at_index != -1 and (slash_index == -1 or at_index < slash_index):
+            # Replace credentials part up to '@'
+            rest = "***@" + rest[at_index + 1 :]
+        # If credentials in query string etc., we do not attempt deeper parsing here
+        return f"{scheme}://{rest}"
+    except Exception:
+        return uri
+
+
+def _effective_target_info(uri: str, timeout_ms: int, tls: bool, db_name: str) -> Dict[str, str]:
+    """Build a dictionary with effective target info for logging and health reporting."""
+    return {
+        "uri": _mask_uri(uri),
+        "db_name": db_name,
+        "timeout_ms": str(timeout_ms),
+        "tls": "true" if tls else "false",
+    }
 
 
 def _build_uri_from_parts() -> Tuple[str, str]:
@@ -52,11 +86,11 @@ def _build_uri_from_parts() -> Tuple[str, str]:
         auth_part = f"{u}:{p}@"
 
     # Base standard URI (not SRV) to be widely compatible
-    base = f"mongodb://{auth_part}{host}:{port}"
+    base = f"mongodb://{auth_part}{host}:{port}/{db_name}"
     if options:
         if options.startswith("?"):
             options = options[1:]
-        uri = f"{base}/?{options}"
+        uri = f"{base}?{options}"
     else:
         uri = base
     return uri, db_name
@@ -68,44 +102,49 @@ def _build_mongo_client() -> Tuple[MongoClient, str]:
 
     Preference:
       - Use MONGODB_URI if present (preferred)
-      - Otherwise construct from MONGODB_HOST/PORT/USERNAME/PASSWORD/etc.
+      - Otherwise construct from MONGODB_HOST/PORT/USERNAME/PASSWORD/etc., but
+        only when an explicit host/port is configured.
+      - Do NOT silently fall back to localhost unless explicitly configured.
 
     Also reads:
       - MONGODB_DB_NAME (default 'network_devices')
       - MONGODB_TLS (optional, boolean)
-      - MONGODB_OPTIONS (optional query)
-      - serverSelectionTimeoutMS fixed reasonable default (5000ms)
+      - MONGODB_CONNECT_TIMEOUT_MS (optional, default 5000)
     """
     uri_env = os.environ.get("MONGODB_URI")
+    db_name = os.environ.get("MONGODB_DB_NAME", DEFAULT_DB_NAME)
+
+    explicit_parts_provided = any(
+        os.environ.get(k)
+        for k in ("MONGODB_HOST", "MONGODB_PORT", "MONGODB_USERNAME", "MONGODB_PASSWORD", "MONGODB_OPTIONS")
+    )
+
     if uri_env:
-        # If provided, use env-specified DB name or default to DEFAULT_DB_NAME
-        db_name = os.environ.get("MONGODB_DB_NAME", DEFAULT_DB_NAME)
         uri = uri_env
+    elif explicit_parts_provided:
+        uri, db_name = _build_uri_from_parts()
     else:
-        # Set sensible default to mongodb://localhost:27017/network if nothing is provided.
-        # This aligns with the requirement to default to DB 'network'.
-        default_uri = f"mongodb://localhost:27017/{DEFAULT_DB_NAME}"
-        uri = default_uri
-        db_name = DEFAULT_DB_NAME
-        # If individual parts are provided (host/port/etc.), build from them
-        # This preserves existing fallback connection logic
-        if (
-            os.environ.get("MONGODB_HOST")
-            or os.environ.get("MONGODB_PORT")
-            or os.environ.get("MONGODB_USERNAME")
-            or os.environ.get("MONGODB_PASSWORD")
-            or os.environ.get("MONGODB_OPTIONS")
-        ):
-            uri, db_name = _build_uri_from_parts()
+        # No explicit configuration given: do not assume localhost; construct a non-host URI with db_name only.
+        # Many drivers allow URI without host, but for clarity, we will raise a config error upon connect attempt.
+        # Using a clear message helps users set MONGODB_URI.
+        raise RuntimeError(
+            "MongoDB configuration missing. Set MONGODB_URI or provide explicit parts "
+            "(MONGODB_HOST/MONGODB_PORT/etc.). No fallback to localhost is performed."
+        )
 
-    # TLS and options: if options not encoded in URI and MONGODB_TLS true, pass tls kwarg
+    # TLS and timeout config
     tls = _env_bool(os.environ.get("MONGODB_TLS"))
-
-    kwargs = {
-        "serverSelectionTimeoutMS": int(os.environ.get("MONGODB_CONNECT_TIMEOUT_MS", "5000")),
-    }
+    timeout_ms = int(os.environ.get("MONGODB_CONNECT_TIMEOUT_MS", "5000"))
+    kwargs = {"serverSelectionTimeoutMS": timeout_ms}
     if tls:
         kwargs["tls"] = True
+
+    # Log effective target safely (no credentials)
+    info = _effective_target_info(uri, timeout_ms, tls, db_name)
+    print(
+        f"[MongoDB] Attempting connection | uri={info['uri']} db={info['db_name']} "
+        f"tls={info['tls']} timeout_ms={info['timeout_ms']}"
+    )
 
     client = MongoClient(uri, **kwargs)
     return client, db_name
@@ -194,13 +233,41 @@ def ping() -> Tuple[bool, Optional[str]]:
     Returns:
       (True, None) if healthy
       (False, error_message) if unhealthy
+
+    The error message includes a masked URI host/cluster, db name, tls and timeout to aid troubleshooting.
     """
     try:
         client = get_client()
         client.admin.command("ping")
         return True, None
     except Exception as e:
-        return False, str(e)
+        # Try to rebuild info for actionable error message
+        uri_env = os.environ.get("MONGODB_URI")
+        db_name = os.environ.get("MONGODB_DB_NAME", DEFAULT_DB_NAME)
+        tls = _env_bool(os.environ.get("MONGODB_TLS"))
+        timeout_ms = int(os.environ.get("MONGODB_CONNECT_TIMEOUT_MS", "5000"))
+        explicit_parts_provided = any(
+            os.environ.get(k)
+            for k in ("MONGODB_HOST", "MONGODB_PORT", "MONGODB_USERNAME", "MONGODB_PASSWORD", "MONGODB_OPTIONS")
+        )
+        try:
+            if uri_env:
+                uri = uri_env
+            elif explicit_parts_provided:
+                uri, db_name = _build_uri_from_parts()
+            else:
+                uri = "mongodb://<unset>"
+        except Exception:
+            uri = "mongodb://<error-building-uri>"
+        info = _effective_target_info(uri, timeout_ms, tls, db_name)
+        hint = (
+            "Verify MONGODB_URI, network access, credentials, and TLS settings. "
+            "Set MONGODB_CONNECT_TIMEOUT_MS for slower networks if needed."
+        )
+        return False, (
+            f"{str(e)} | target={info['uri']} db={info['db_name']} "
+            f"tls={info['tls']} timeout_ms={info['timeout_ms']} | hint: {hint}"
+        )
 
 
 # Attempt eager initialization at import time to surface connectivity early but non-fatal.
