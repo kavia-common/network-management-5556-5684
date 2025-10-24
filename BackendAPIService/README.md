@@ -20,8 +20,8 @@ pip install -r requirements.txt
 
 Preferred single-URI configuration:
 - MONGODB_URI (preferred)
-  - MongoDB connection URI. Defaults to `mongodb://localhost:27017/network` if not provided.
-  - Example: `mongodb://localhost:27017/network` or `mongodb+srv://<user>:<pass>@cluster0.mongodb.net/<db>`
+  - MongoDB connection URI. Defaults to `mongodb://localhost:27017/network_devices` if not provided.
+  - Example: `mongodb://localhost:27017/network_devices` or `mongodb+srv://<user>:<pass>@cluster0.mongodb.net/<db>`
 
 Fallback individual settings (used only if MONGODB_URI is not set):
 - MONGODB_HOST (default: `localhost`)
@@ -31,7 +31,7 @@ Fallback individual settings (used only if MONGODB_URI is not set):
 - MONGODB_OPTIONS (optional, query string without leading `?`, e.g. `replicaSet=rs0&authSource=admin`)
 
 Common settings:
-- MONGODB_DB_NAME (optional, default: `network`)
+- MONGODB_DB_NAME (optional, default: `network_devices`)
 - MONGODB_COLLECTION (optional, default: `device`) — collection used by the app; indexes are created here
 - MONGODB_TLS (optional, `true` enables TLS)
 - MONGODB_CONNECT_TIMEOUT_MS (optional, default: `5000`)
@@ -40,8 +40,8 @@ Example `.env` content:
 
 ```
 # Preferred
-MONGODB_URI=mongodb://localhost:27017/network
-MONGODB_DB_NAME=network
+MONGODB_URI=mongodb://localhost:27017/network_devices
+MONGODB_DB_NAME=network_devices
 MONGODB_COLLECTION=device
 MONGODB_TLS=false
 MONGODB_CONNECT_TIMEOUT_MS=5000
@@ -85,7 +85,7 @@ device = devices.find_one({"ip_address": "192.168.1.10"})
 ## Endpoints
 
 - GET `/` — Health check
-- GET `/health/db` — Database health (pings MongoDB, returns {"status":"up"} or {"status":"down","error":"..."})
+- GET `/health/db` — Database health (pings MongoDB, returns {"status":"ok"} or {"status":"error","message":"..."})
 - GET `/devices` — List devices
   - Optional query params: `page` (1-based), `limit` (default 10, max 1000)
   - If `page` or `limit` provided: returns `{ items, total, page, limit }`
@@ -137,8 +137,8 @@ python BackendAPIService/generate_openapi.py
 ## Acceptance Criteria Mapping
 
 - Backend reads MongoDB settings from env vars and connects on startup: Implemented in `app/db.py` with `MONGODB_URI` preferred and fallbacks.
-- `devices` collection in `network_devices` (or provided DB name): `MONGODB_DB_NAME` default and usage implemented.
+- Default DB name `network_devices` (or provided DB name): Implemented via DEFAULT_DB_NAME and usage.
 - Indexes created on `ip_address` (unique), `type`, `status`: Ensured in `_ensure_indexes`.
 - Graceful error handling and clear logs if connection fails: `get_client` raises `RuntimeError` with details; health endpoint surfaces errors.
-- Health endpoint `/health/db`: Implemented in `app/routes/health.py`.
-- Env vars documented and `.env.example` updated: Provided below.
+- Health endpoint `/health/db`: Implemented in `app/routes/health.py` returning {"status":"ok"} or {"status":"error","message":"..."} with appropriate HTTP status.
+- Env vars documented and `.env.example` updated: Provided above.

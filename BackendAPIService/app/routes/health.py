@@ -24,10 +24,12 @@ class DBHealth(MethodView):
         """
         GET /health/db
         Returns:
-          200: {"status": "up"}
-          503: {"status": "down", "error": "<details>"}
+          200: {"status": "ok"}
+          500: {"status": "error", "message": "<details>"}
         """
         ok, err = _db.ping()
         if ok:
-            return jsonify({"status": "up"}), 200
-        return jsonify({"status": "down", "error": err}), 503
+            # Success format required by task
+            return jsonify({"status": "ok"}), 200
+        # Error format and 500 status required by task
+        return jsonify({"status": "error", "message": err}), 500

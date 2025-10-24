@@ -10,11 +10,10 @@ Quick links:
 Setup:
 1) Create and configure environment variables
    - Copy BackendAPIService/.env.example to BackendAPIService/.env
-   - Ensure MONGODB_URI is set to a reachable MongoDB instance, or rely on the default `mongodb://localhost:27017/network`.
-   - You can also customize:
-     - MONGODB_DB_NAME (default: network)
+   - Ensure MONGODB_URI is set to a reachable MongoDB instance, or rely on the default `mongodb://localhost:27017/network_devices`.
+   - Optional:
+     - MONGODB_DB_NAME (default: network_devices)
      - MONGODB_COLLECTION (default: device)
-   - See BackendAPIService/README.md for all supported variables.
 
 2) Install dependencies
    cd BackendAPIService
@@ -26,4 +25,4 @@ Setup:
 
 Health:
 - Service: GET /
-- Database: GET /health/db -> {"status":"up"} or {"status":"down","error":"..."}
+- Database: GET /health/db -> {"status":"ok"} or {"status":"error","message":"..."}
