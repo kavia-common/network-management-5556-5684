@@ -23,9 +23,10 @@ class DBHealth(MethodView):
     def get(self):
         """
         GET /health/db
+        Summary: Verify database connectivity.
         Returns:
-          200: {"status": "ok"}
-          500: {"status": "error", "message": "<details>"}
+          200: {"status": "ok"} when MongoDB ping succeeds
+          500: {"status": "error", "message": "<details>"} when connectivity fails
         """
         ok, err = _db.ping()
         if ok:

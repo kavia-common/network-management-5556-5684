@@ -111,6 +111,8 @@ Development:
 
 1) Configure environment
    - Copy `.env.example` to `.env` and fill in values (prefer MONGODB_URI).
+   - If using a configuration panel that exposes variables with REACT_APP_ prefix (e.g. `REACT_APP_MONGODB_URI`),
+     ensure your deployment maps them to the backend variables listed above (without the REACT_APP_ prefix).
 
 2) Install dependencies
 ```
@@ -145,9 +147,8 @@ python BackendAPIService/generate_openapi.py
 
 ## Acceptance Criteria Mapping
 
-- Backend reads MongoDB settings from env vars and connects on startup: Implemented in `app/db.py` with `MONGODB_URI` preferred and fallbacks; `.env` auto-loaded via `python-dotenv`.
-- Default DB name `network_devices` (or provided DB name): Implemented via DEFAULT_DB_NAME and usage.
-- Indexes created on `ip_address` (unique), `type`, `status`: Ensured in `_ensure_indexes`.
+- Backend reads MongoDB settings from env vars and connects on startup or first use: Implemented in `app/db.py` with `MONGODB_URI` preferred and fallbacks; `.env` auto-loaded via `python-dotenv`.
+- If `MONGODB_DB_NAME` provided, it is used: Supported by `DEFAULT_DB_NAME` override and client setup.
 - Graceful error handling and clear logs if connection fails: `get_client` raises `RuntimeError` with details; health endpoint surfaces errors.
 - Health endpoint `/health/db`: Implemented in `app/routes/health.py` returning {"status":"ok"} or {"status":"error","message":"..."} with appropriate HTTP status.
-- Env vars documented and `.env.example` updated: Provided above.
+- Env vars documented and `.env.example` added: Provided above.
