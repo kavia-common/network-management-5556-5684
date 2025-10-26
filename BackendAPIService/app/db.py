@@ -166,10 +166,30 @@ def _build_mongo_client() -> Tuple[MongoClient, str]:
 def _ensure_indexes(db: Database) -> None:
     """
     Ensure required indexes exist for the device collection configured via MONGODB_COLLECTION:
+      - Unique index on name (name: 'uniq_name')
       - Unique index on ip_address (name: 'uniq_ip')
       - Non-unique indexes on 'type' and 'status'
+
+    Backward compatibility:
+      - Existing documents that may not have unique names could conflict. The unique index creation
+        may fail in that case. We attempt to create the index and if it fails due to duplicates,
+        we log/print a clear message but continue to ensure the service remains usable. API-level
+        creation/update will still enforce uniqueness going forward to prevent further conflicts.
     """
     devices = db[DEVICES_COLLECTION]  # DEVICES_COLLECTION defaults to 'device'
+
+    # Unique index on device name to support name-as-id semantics
+    try:
+        devices.create_index(
+            [("name", ASCENDING)],
+            name="uniq_name",
+            unique=True,
+            background=True,
+        )
+    except Exception as e:
+        # Do not crash app startup due to pre-existing duplicates; print a warning for operators.
+        print(f"[MongoDB] Warning: Failed to create unique index on 'name' (uniq_name). "
+              f"Reason: {e}. Existing duplicate names must be resolved to fully enforce name-based IDs.")
 
     # Unique index on ip_address
     devices.create_index(
