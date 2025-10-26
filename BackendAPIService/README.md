@@ -62,15 +62,12 @@ Note: Do not commit your real `.env` file. Provide environment variables via you
 
 On startup, the app initializes a singleton `MongoClient`, verifies connectivity using `admin.command('ping')`, and ensures indexes on the `device` collection (or collection specified via `MONGODB_COLLECTION`):
 
-- Unique index on `name` (name: `uniq_name`) — device name is the primary identifier and is used as id
 - Unique index on `ip_address` (name: `uniq_ip`)
 - Index on `type` (name: `idx_type`)
 - Index on `status` (name: `idx_status`)
 
-Backward compatibility:
-- If pre-existing duplicate names prevent creation of the `uniq_name` index, the service will continue running and log a warning.
-  The API will still enforce unique names on new create/update operations to avoid further conflicts. Operators should
-  resolve duplicates manually to benefit from full index enforcement.
+Note:
+- Device identification uses MongoDB ObjectId (`_id`). The `name` field is no longer uniquely indexed and can be updated.
 
 ## Using the DB helpers in code
 
@@ -103,18 +100,15 @@ device = devices.find_one({"ip_address": "192.168.1.10"})
   - Device ID equals the provided `name`. `name` must be unique and non-empty.
   - On duplicate `name`: `409` with `{ "message": "Device name already exists" }`
   - On duplicate `ip_address`: `400` with `{ "error": { "field": "ip_address", "message": "already exists" } }`
-- GET `/devices/{id}` — Retrieve a device by id (here, `id` == the device `name`)
-- PUT `/devices/{id}` — Update fields of a device (all optional except `name`, which is immutable)
-  - Same validation rules as create; uniqueness enforced on `ip_address`
-  - Attempting to change `name` is ignored; to rename create a new device and delete the old one.
-- DELETE `/devices/{id}` — Delete a device by its name
+- GET `/devices/{id}` — Retrieve a device by id (MongoDB ObjectId string)
+- PUT `/devices/{id}` — Update fields of a device (all optional; `name` updates are allowed)
+  - Validation same as create; uniqueness enforced on `ip_address`
+- DELETE `/devices/{id}` — Delete a device by its ObjectId
 - POST `/devices/{id}/ping` — Perform a safe reachability check
   - Non-privileged approach (DNS resolve + short TCP connect to 80/443)
   - Updates `status` and `last_checked` timestamp
 
-All device responses expose `id` equal to the device `name` and include `created_at`, `updated_at`, and `last_checked` (nullable).
-For legacy documents missing a `name`, responses will fall back to using the stringified `_id` as `id` and `name` to avoid breaking clients,
-but new creations always require a non-empty, unique `name`.
+All device responses expose `id` equal to the stringified MongoDB `_id` and include `created_at`, `updated_at`, and `last_checked` (nullable).
 
 ## Running the app
 

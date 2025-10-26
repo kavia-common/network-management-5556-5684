@@ -6,6 +6,7 @@ from flask import request
 from flask.views import MethodView
 from flask_smorest import Blueprint, abort
 from pymongo.errors import DuplicateKeyError
+from bson import ObjectId  # ObjectId-based identification
 
 from app.db import get_collection, DEVICES_COLLECTION
 from app.schemas import (
@@ -62,6 +63,14 @@ def _safe_ping(ip: str) -> Tuple[str, Optional[datetime]]:
     return "offline", last
 
 
+def _to_object_id(id_str: str) -> ObjectId:
+    """Convert string to ObjectId or abort 400."""
+    try:
+        return ObjectId(id_str)
+    except Exception:
+        abort(400, message="Invalid id format; expected MongoDB ObjectId string")
+
+
 @blp.route("")
 class DevicesList(MethodView):
     @blp.response(200, DeviceListOutSchema, description="List devices (paginated if page/limit provided)")
@@ -107,7 +116,7 @@ class DevicesList(MethodView):
     def post(self, json_data):
         """
         Create a device.
-        Enforces unique name and ip_address; returns 409 on duplicate name and 400 on duplicate ip_address.
+        Enforces uniqueness of ip_address via DB index. 'name' can be any non-empty string.
         """
         coll = get_collection(DEVICES_COLLECTION)
         doc = dict(json_data)
@@ -117,27 +126,18 @@ class DevicesList(MethodView):
         if not name:
             abort(422, message="Invalid name")
 
-        # Enforce uniqueness of name at application level for clear 409 response
-        existing = coll.find_one({"name": name})
-        if existing:
-            abort(409, message="Device name already exists")
-
         # Set timestamps
         doc.update(_timestamps_for_create())
 
         try:
-            # Rely on DB unique index for ip_address and name (if present)
-            coll.insert_one(doc)
+            # Rely on DB unique index for ip_address
+            insert_res = coll.insert_one(doc)
         except DuplicateKeyError as e:
-            # Determine which field conflicted, if possible
-            # This is conservative: ip_address was enforced previously with 400;
-            # keep the same behavior for backward compatibility.
             if "ip" in str(e).lower():
                 abort(400, error={"field": "ip_address", "message": "already exists"})
-            # Name duplicate via race-condition fallback
-            abort(409, message="Device name already exists")
+            abort(400, message="Duplicate key error")
 
-        created = coll.find_one({"name": name})
+        created = coll.find_one({"_id": insert_res.inserted_id})
         return created
 
 
@@ -146,17 +146,11 @@ class DeviceItem(MethodView):
     @blp.response(200, DeviceOutSchema, description="Get a device by id")
     def get(self, id: str):
         """
-        Retrieve device by name-based id. For backward compatibility,
-        if not found by name, attempt legacy lookup by _id string match.
+        Retrieve device by ObjectId-based id.
         """
         coll = get_collection(DEVICES_COLLECTION)
-        doc = coll.find_one({"name": id})
-        if not doc:
-            # Legacy support: some clients may pass ObjectId strings; try matching _id as string.
-            # Note: no-op unless _id was stored as a string in rare cases.
-            doc = coll.find_one(
-                {"_id": {"$in": [id]}}
-            )
+        oid = _to_object_id(id)
+        doc = coll.find_one({"_id": oid})
         if not doc:
             abort(404, message="Device not found")
         return doc
@@ -165,23 +159,21 @@ class DeviceItem(MethodView):
     @blp.response(200, DeviceOutSchema, description="Update a device by id")
     def put(self, json_data, id: str):
         """
-        Update a device by name-based id.
-        - Name changes are disallowed. Any 'name' in payload will be ignored.
+        Update a device by ObjectId-based id.
+        - 'name' updates are allowed.
         - Enforces ip_address uniqueness via DB index (returns 400 on duplicate ip).
         """
         coll = get_collection(DEVICES_COLLECTION)
         update_fields = dict(json_data or {})
-        # Ensure name cannot be updated
-        if "name" in update_fields:
-            update_fields.pop("name", None)
 
         if not update_fields:
             abort(400, message="No fields provided for update")
 
         update_fields.update(_timestamp_for_update())
+        oid = _to_object_id(id)
         try:
             res = coll.find_one_and_update(
-                {"name": id},
+                {"_id": oid},
                 {"$set": update_fields},
                 return_document=True,  # type: ignore[arg-type]
             )
@@ -193,9 +185,10 @@ class DeviceItem(MethodView):
 
     @blp.response(204, description="Delete a device by id")
     def delete(self, id: str):
-        """Delete a device by its name-based id."""
+        """Delete a device by its ObjectId-based id."""
         coll = get_collection(DEVICES_COLLECTION)
-        res = coll.delete_one({"name": id})
+        oid = _to_object_id(id)
+        res = coll.delete_one({"_id": oid})
         if res.deleted_count == 0:
             abort(404, message="Device not found")
         return ""  # 204 No Content
@@ -211,14 +204,15 @@ class DevicePing(MethodView):
         - last_checked (UTC timestamp)
         """
         coll = get_collection(DEVICES_COLLECTION)
-        doc = coll.find_one({"name": id})
+        oid = _to_object_id(id)
+        doc = coll.find_one({"_id": oid})
         if not doc:
             abort(404, message="Device not found")
 
         ip = doc.get("ip_address")
         status, last = _safe_ping(ip)
         updated = coll.find_one_and_update(
-            {"name": id},
+            {"_id": oid},
             {"$set": {"status": status, "last_checked": last, "updated_at": datetime.utcnow()}},
             return_document=True,  # type: ignore[arg-type]
         )

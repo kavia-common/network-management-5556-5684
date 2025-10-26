@@ -35,8 +35,9 @@ class DeviceCreateSchema(BaseDeviceSchema):
 
 
 class DeviceUpdateSchema(Schema):
-    """Schema for updating a device (all fields optional except name which is immutable)."""
-    # Name changes are disallowed to keep name as stable identifier
+    """Schema for updating a device (all fields optional)."""
+    # Name is now updatable
+    name = fields.String(validate=validate.Length(min=1), description="Device name")
     ip_address = fields.String(validate=_ipv4_validator, data_key="ip_address",
                                description="Device IPv4 address")
     type = fields.String(validate=validate.OneOf(["router", "switch", "server"]), description="Device type")
@@ -46,7 +47,7 @@ class DeviceUpdateSchema(Schema):
 
 class DeviceOutSchema(Schema):
     """Schema for serializing device records from MongoDB."""
-    id = fields.String(required=True, description="Device ID (equals device name)")
+    id = fields.String(required=True, description="Device ID (MongoDB ObjectId as string)")
     name = fields.String(required=True, description="Device name")
     ip_address = fields.String(required=True, description="Device IPv4 address")
     type = fields.String(required=True, description="Device type")
@@ -60,23 +61,16 @@ class DeviceOutSchema(Schema):
     def map_mongo_fields(self, data: Dict[str, Any], **kwargs) -> Dict[str, Any]:
         """
         Map Mongo document to API output:
-        - id => device name (primary identifier)
-        - For legacy documents missing 'name', fallback to stringified _id as both id and name
+        - id => stringified _id
+        - keep 'name' as provided
         - Normalize timestamp types
         """
         out = dict(data)
-        # Prefer provided name; ensure id mirrors name
-        name = out.get("name")
-        if not name:
-            # Legacy fallback: if name missing, derive name from _id to avoid breaking responses
-            legacy_id = out.get("_id")
-            if legacy_id is not None:
-                name = str(legacy_id)
-                # Do not write back; only for serialization
-            else:
-                name = ""  # Should not happen with validation, but avoid KeyError
-        out["name"] = name
-        out["id"] = name
+        # id from _id
+        legacy_id = out.get("_id")
+        out["id"] = str(legacy_id) if legacy_id is not None else ""
+        # Ensure name field exists
+        out["name"] = out.get("name", "")
 
         # Ensure datetime objects are present
         for k in ("created_at", "updated_at", "last_checked"):
