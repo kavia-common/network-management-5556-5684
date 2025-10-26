@@ -66,9 +66,6 @@ On startup, the app initializes a singleton `MongoClient`, verifies connectivity
 - Index on `type` (name: `idx_type`)
 - Index on `status` (name: `idx_status`)
 
-Note:
-- Device identification uses MongoDB ObjectId (`_id`). The `name` field is no longer uniquely indexed and can be updated.
-
 ## Using the DB helpers in code
 
 The `app/db.py` module exposes the following functions:
@@ -97,18 +94,16 @@ device = devices.find_one({"ip_address": "192.168.1.10"})
   - Otherwise: returns full array `[]`
 - POST `/devices` — Create a device
   - Body: `{ name, ip_address (IPv4), type (router|switch|server), location, status (online|offline|unknown) }`
-  - Device ID equals the provided `name`. `name` must be unique and non-empty.
-  - On duplicate `name`: `409` with `{ "message": "Device name already exists" }`
   - On duplicate `ip_address`: `400` with `{ "error": { "field": "ip_address", "message": "already exists" } }`
-- GET `/devices/{id}` — Retrieve a device by id (MongoDB ObjectId string)
-- PUT `/devices/{id}` — Update fields of a device (all optional; `name` updates are allowed)
-  - Validation same as create; uniqueness enforced on `ip_address`
-- DELETE `/devices/{id}` — Delete a device by its ObjectId
+- GET `/devices/{id}` — Retrieve a device by id
+- PUT `/devices/{id}` — Update fields of a device (all optional)
+  - Same validation rules as create; uniqueness enforced on `ip_address`
+- DELETE `/devices/{id}` — Delete a device
 - POST `/devices/{id}/ping` — Perform a safe reachability check
   - Non-privileged approach (DNS resolve + short TCP connect to 80/443)
   - Updates `status` and `last_checked` timestamp
 
-All device responses expose `id` equal to the stringified MongoDB `_id` and include `created_at`, `updated_at`, and `last_checked` (nullable).
+All device responses map Mongo `_id` to `id` and include `created_at`, `updated_at`, and `last_checked` (nullable).
 
 ## Running the app
 

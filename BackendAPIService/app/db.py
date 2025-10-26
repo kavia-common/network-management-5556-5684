@@ -168,10 +168,6 @@ def _ensure_indexes(db: Database) -> None:
     Ensure required indexes exist for the device collection configured via MONGODB_COLLECTION:
       - Unique index on ip_address (name: 'uniq_ip')
       - Non-unique indexes on 'type' and 'status'
-
-    Note:
-      - Device identification is based on MongoDB ObjectId (_id). 'name' is not uniquely indexed to
-        allow renaming and non-unique names if needed.
     """
     devices = db[DEVICES_COLLECTION]  # DEVICES_COLLECTION defaults to 'device'
 

@@ -36,7 +36,6 @@ class DeviceCreateSchema(BaseDeviceSchema):
 
 class DeviceUpdateSchema(Schema):
     """Schema for updating a device (all fields optional)."""
-    # Name is now updatable
     name = fields.String(validate=validate.Length(min=1), description="Device name")
     ip_address = fields.String(validate=_ipv4_validator, data_key="ip_address",
                                description="Device IPv4 address")
@@ -59,28 +58,21 @@ class DeviceOutSchema(Schema):
 
     @pre_dump
     def map_mongo_fields(self, data: Dict[str, Any], **kwargs) -> Dict[str, Any]:
-        """
-        Map Mongo document to API output:
-        - id => stringified _id
-        - keep 'name' as provided
-        - Normalize timestamp types
-        """
+        """Map Mongo _id -> id and ensure timestamps are datetime."""
+        # Convert Mongo document to output dict
         out = dict(data)
-        # id from _id
-        legacy_id = out.get("_id")
-        out["id"] = str(legacy_id) if legacy_id is not None else ""
-        # Ensure name field exists
-        out["name"] = out.get("name", "")
-
+        # map _id to id
+        _id = out.pop("_id", None)
+        if _id is not None:
+            out["id"] = str(_id)
         # Ensure datetime objects are present
         for k in ("created_at", "updated_at", "last_checked"):
             if k in out and out[k] is not None and not isinstance(out[k], datetime):
+                # Attempt parse if string, else set None
                 try:
                     out[k] = datetime.fromisoformat(str(out[k]))
                 except Exception:
                     out[k] = None
-        # Remove internal _id from output if present
-        out.pop("_id", None)
         return out
 
 
