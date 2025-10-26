@@ -13,6 +13,7 @@ Setup:
    - Ensure MONGODB_URI is set to a reachable MongoDB instance (or provide fallback parts as documented in BackendAPIService/README.md).
    - Optional vars supported: MONGODB_DB_NAME, MONGODB_TLS, MONGODB_CONNECT_TIMEOUT_MS, MONGODB_COLLECTION
    - Fallback parts (used only when MONGODB_URI is empty): MONGODB_HOST, MONGODB_PORT, MONGODB_USERNAME, MONGODB_PASSWORD, MONGODB_OPTIONS
+   - Note: If your environment uses REACT_APP_* variables (e.g., REACT_APP_MONGODB_URI), the backend will automatically map them to the corresponding MONGODB_* variables at runtime if the backend vars are not set.
 
 2) Install dependencies
    cd BackendAPIService

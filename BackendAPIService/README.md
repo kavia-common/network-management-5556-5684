@@ -112,7 +112,8 @@ Development:
 1) Configure environment
    - Copy `.env.example` to `.env` and fill in values (prefer MONGODB_URI).
    - If using a configuration panel that exposes variables with REACT_APP_ prefix (e.g. `REACT_APP_MONGODB_URI`),
-     ensure your deployment maps them to the backend variables listed above (without the REACT_APP_ prefix).
+     the backend will automatically map these to the corresponding backend variables at runtime if the direct
+     MONGODB_* variables are not set. You may still prefer setting MONGODB_* directly for clarity.
 
 2) Install dependencies
 ```

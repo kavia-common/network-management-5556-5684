@@ -2,10 +2,24 @@ import os
 import threading
 import urllib.parse
 from typing import Optional, Tuple, Dict
+
 from pymongo import MongoClient, ASCENDING
 from pymongo.collection import Collection
 from pymongo.database import Database
 from pymongo.errors import PyMongoError
+
+# Bridge for environments that provide REACT_APP_* variables (commonly used by frontend builds).
+# If backend variables are not present, map REACT_APP_* to backend MONGODB_* equivalents.
+_REACT_TO_BACKEND_ENV_MAP = {
+    "REACT_APP_MONGODB_URI": "MONGODB_URI",
+    "REACT_APP_MONGODB_DB_NAME": "MONGODB_DB_NAME",
+    "REACT_APP_MONGODB_USERNAME": "MONGODB_USERNAME",
+    "REACT_APP_MONGODB_PASSWORD": "MONGODB_PASSWORD",
+    "REACT_APP_MONGODB_OPTIONS": "MONGODB_OPTIONS",
+}
+for react_key, backend_key in _REACT_TO_BACKEND_ENV_MAP.items():
+    if backend_key not in os.environ and react_key in os.environ:
+        os.environ[backend_key] = os.environ[react_key]
 
 # Module-level singleton references
 _client_lock = threading.Lock()
@@ -125,8 +139,7 @@ def _build_mongo_client() -> Tuple[MongoClient, str]:
         uri, db_name = _build_uri_from_parts()
     else:
         # No explicit configuration given: do not assume localhost; construct a non-host URI with db_name only.
-        # Many drivers allow URI without host, but for clarity, we will raise a config error upon connect attempt.
-        # Using a clear message helps users set MONGODB_URI.
+        # Raise a config error upon connect attempt to provide clear guidance.
         raise RuntimeError(
             "MongoDB configuration missing. Set MONGODB_URI or provide explicit parts "
             "(MONGODB_HOST/MONGODB_PORT/etc.). No fallback to localhost is performed."
