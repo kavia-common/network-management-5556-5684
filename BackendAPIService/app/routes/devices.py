@@ -113,9 +113,20 @@ class DevicesList(MethodView):
                 "limit": limit,
             }
         else:
+            # Non-paginated path: previously returned a raw array, but the @blp.response decorator
+            # for this route uses DeviceListOutSchema (object with 'items', 'total', 'page', 'limit').
+            # Returning a bare list under that schema led to an empty object {} response.
+            # To ensure documents are returned and to keep documentation consistency,
+            # we wrap results in the same envelope shape.
             items = list(coll.find({}).sort("created_at", -1))
-            # Return array only
-            return DeviceOutSchema(many=True).dump(items)
+            dumped = DeviceOutSchema(many=True).dump(items)
+            total = len(dumped)
+            return {
+                "items": dumped,
+                "total": total,
+                "page": 1,
+                "limit": total,
+            }
 
     @blp.arguments(DeviceCreateSchema, location="json")
     @blp.response(201, DeviceOutSchema, description="Create a new device")
@@ -149,7 +160,7 @@ class DeviceItem(MethodView):
     @blp.arguments(DeviceUpdateSchema, location="json")
     @blp.response(200, DeviceOutSchema, description="Update a device by id")
     def put(self, json_data, id: str):
-        coll = get_collection("devices")
+        coll = get_collection(DEVICES_COLLECTION)
         update_fields = dict(json_data)
         if not update_fields:
             abort(400, message="No fields provided for update")
