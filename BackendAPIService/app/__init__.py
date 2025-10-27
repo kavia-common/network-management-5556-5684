@@ -2,14 +2,31 @@ from flask import Flask
 from flask_cors import CORS
 from flask_smorest import Api
 from .routes import health_blp, devices_blp
+import os
 
-# Load environment variables from .env if present
+# Load environment variables from .env if present.
+# We explicitly attempt to load BackendAPIService/.env to be robust to different CWDs.
 try:
     from dotenv import load_dotenv  # type: ignore
-    load_dotenv()
-except Exception:
+
+    # Resolve potential .env locations
+    this_dir = os.path.dirname(os.path.abspath(__file__))
+    service_root = os.path.abspath(os.path.join(this_dir, os.pardir))
+    explicit_env_path = os.path.join(service_root, ".env")
+
+    loaded = False
+    if os.path.isfile(explicit_env_path):
+        loaded = load_dotenv(dotenv_path=explicit_env_path, override=False)
+        if loaded:
+            print(f"[Startup][INFO] Loaded environment from {explicit_env_path}")
+    if not loaded:
+        # Fallback: default search (nearest .env)
+        loaded = load_dotenv()
+        if loaded:
+            print("[Startup][INFO] Loaded environment from default .env search")
+except Exception as _e:
     # If python-dotenv is not installed or any error occurs, proceed without failing.
-    pass
+    print(f"[Startup][WARN] Could not load .env automatically: {_e}")
 
 # Import db to initialize Mongo connection on startup if env is configured
 from . import db as _db  # noqa: F401
