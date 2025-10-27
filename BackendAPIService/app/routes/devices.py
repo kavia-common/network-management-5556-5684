@@ -1,9 +1,11 @@
+import json
+import logging
 import socket
 from datetime import datetime
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, Optional, Tuple, List
 
 from bson import ObjectId
-from flask import request
+from flask import request, Response
 from flask.views import MethodView
 from flask_smorest import Blueprint, abort
 from pymongo.errors import DuplicateKeyError
@@ -14,7 +16,10 @@ from app.schemas import (
     DeviceUpdateSchema,
     DeviceOutSchema,
     DeviceListOutSchema,
+    serialize_devices,
 )
+
+logger = logging.getLogger(__name__)
 
 blp = Blueprint(
     "Devices",
@@ -76,40 +81,65 @@ def _safe_ping(ip: str) -> Tuple[str, Optional[datetime]]:
 
 @blp.route("")
 class DevicesList(MethodView):
-    @blp.response(200, DeviceListOutSchema, description="List devices (paginated if page/limit provided)")
+    @blp.response(200, DeviceListOutSchema, description="List devices with pagination envelope")
     def get(self):
         """
-        List devices.
-        - If 'page' and 'limit' query params are provided, returns envelope:
-          { items: [...], total, page, limit }
-        - Otherwise returns full array for convenience (legacy behavior).
+        List devices with unified envelope.
+        Always returns:
+          { "items": [...], "total": <int>, "page": <int>, "limit": <int> }
+        Query params:
+          - page (optional, default 1; 1-based)
+          - limit (optional, default 10; 1..1000)
+        Diagnostics:
+          Logs computed page/limit, total count, item count, and content type.
         """
         coll = get_collection(DEVICES_COLLECTION)
-        # pagination params
+
+        # Resolve pagination with safe defaults
         page_param = request.args.get("page")
         limit_param = request.args.get("limit")
-        if page_param is not None or limit_param is not None:
-            try:
-                page = int(page_param) if page_param is not None else 1
-                limit = int(limit_param) if limit_param is not None else 10
-                if page < 1 or limit < 1 or limit > 1000:
-                    raise ValueError
-            except ValueError:
-                abort(400, message="Invalid pagination parameters")
+        try:
+            page = int(page_param) if page_param is not None else 1
+            limit = int(limit_param) if limit_param is not None else 10
+            if page < 1 or limit < 1 or limit > 1000:
+                raise ValueError
+        except ValueError:
+            abort(400, message="Invalid pagination parameters")
 
-            total = coll.count_documents({})
-            cursor = coll.find({}).sort("created_at", -1).skip((page - 1) * limit).limit(limit)
-            items = list(cursor)
-            return {
-                "items": DeviceOutSchema(many=True).dump(items),
-                "total": total,
-                "page": page,
-                "limit": limit,
-            }
-        else:
-            items = list(coll.find({}).sort("created_at", -1))
-            # Return array only
-            return DeviceOutSchema(many=True).dump(items)
+        total = coll.count_documents({})
+        cursor = (
+            coll.find({})
+            .sort("created_at", -1)
+            .skip((page - 1) * limit)
+            .limit(limit)
+        )
+        raw_items: List[Dict[str, Any]] = list(cursor)
+        items = serialize_devices(raw_items)  # ensures ObjectId->str and datetime ISO via schema
+
+        payload = {
+            "items": items,
+            "total": total,
+            "page": page,
+            "limit": limit,
+        }
+
+        # Structured diagnostics
+        logger.info(
+            "GET /devices diagnostics | page=%s limit=%s total=%s item_count=%s content_type=%s",
+            page,
+            limit,
+            total,
+            len(items),
+            "application/json; charset=utf-8",
+        )
+
+        # Explicit response with content-type
+        return Response(
+            response=json.dumps(payload),
+            status=200,
+            mimetype="application/json",
+            content_type="application/json; charset=utf-8",
+        )
 
     @blp.arguments(DeviceCreateSchema, location="json")
     @blp.response(201, DeviceOutSchema, description="Create a new device")
@@ -127,6 +157,30 @@ class DevicesList(MethodView):
             abort(400, error={"field": "ip_address", "message": "already exists"})
         created = coll.find_one({"_id": res.inserted_id})
         return created
+
+
+@blp.route("/raw")
+class DevicesListRaw(MethodView):
+    @blp.response(200, description="Raw array of devices for debugging (no envelope)")
+    def get(self):
+        """
+        Debugging endpoint returning a raw array.
+        This endpoint returns the plain list of devices (serialized) without envelope.
+        """
+        coll = get_collection(DEVICES_COLLECTION)
+        docs = list(coll.find({}).sort("created_at", -1))
+        items = serialize_devices(docs)
+        logger.info(
+            "GET /devices/raw diagnostics | item_count=%s content_type=%s",
+            len(items),
+            "application/json; charset=utf-8",
+        )
+        return Response(
+            response=json.dumps(items),
+            status=200,
+            mimetype="application/json",
+            content_type="application/json; charset=utf-8",
+        )
 
 
 @blp.route("/<string:id>")
