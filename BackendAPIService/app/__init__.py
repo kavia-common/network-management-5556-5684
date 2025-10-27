@@ -33,3 +33,12 @@ app.config["OPENAPI_TAGS"] = [
 api = Api(app)
 api.register_blueprint(health_blp)
 api.register_blueprint(devices_blp)
+
+# Fail fast on startup if DB is misconfigured or unreachable.
+# This attempts a ping; if it fails, raise to stop the app early with a clear message.
+try:
+    _db.get_client()  # initializes client and ensures indexes; will ping internally
+except Exception as e:
+    # Print a clear startup failure message and re-raise to abort startup.
+    print(f"[Startup] MongoDB initialization failed: {e}")
+    raise

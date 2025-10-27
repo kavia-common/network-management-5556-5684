@@ -2,12 +2,12 @@
 
 Flask-based Backend API for Network Device Management.
 
-This service integrates with MongoDB via `pymongo` and exposes REST APIs (flask-smorest). This document covers environment variables, MongoDB configuration, and available endpoints.
+This service integrates with MongoDB via `pymongo` and exposes REST APIs (flask-smorest). This document covers environment variables, MongoDB configuration (Atlas-ready), and available endpoints.
 
 ## Requirements
 
 - Python 3.10+
-- MongoDB instance accessible to the service
+- MongoDB instance accessible to the service (MongoDB Atlas recommended)
 - Environment variables configured (see below)
 
 Install dependencies:
@@ -22,8 +22,15 @@ Note: The app loads variables from a `.env` file automatically using `python-dot
 
 Preferred single-URI configuration:
 - MONGODB_URI (preferred)
-  - MongoDB connection URI. If not provided, the service will NOT implicitly fall back to localhost unless explicit parts are set.
-  - Example: `mongodb://localhost:27017/network_devices` or `mongodb+srv://<user>:<pass>@cluster0.mongodb.net/<db>`
+  - MongoDB connection URI. Works with Atlas `mongodb+srv://` or standard `mongodb://`.
+  - Example (Local): `mongodb://localhost:27017/network_devices`
+  - Example (Atlas): `mongodb+srv://<user>:<pass>@cluster0.mongodb.net/network_devices?retryWrites=true&w=majority&appName=myapp`
+
+Common settings:
+- MONGODB_DB_NAME (optional, default: `network_devices`)
+- MONGODB_COLLECTION (optional, default: `device`) — collection used by the app; indexes are created here
+- MONGODB_TLS (optional, `true` enables TLS)
+- MONGODB_CONNECT_TIMEOUT_MS (optional, default: `5000`)
 
 Fallback individual settings (used only if MONGODB_URI is not set and at least one part is provided):
 - MONGODB_HOST (default: `localhost`)
@@ -32,20 +39,13 @@ Fallback individual settings (used only if MONGODB_URI is not set and at least o
 - MONGODB_PASSWORD (optional)
 - MONGODB_OPTIONS (optional, query string without leading `?`, e.g. `replicaSet=rs0&authSource=admin`)
 
-Common settings:
-- MONGODB_DB_NAME (optional, default: `network_devices`)
-- MONGODB_COLLECTION (optional, default: `device`) — collection used by the app; indexes are created here
-- MONGODB_TLS (optional, `true` enables TLS)
-- MONGODB_CONNECT_TIMEOUT_MS (optional, default: `5000`)
-
 Example `.env` content (see `.env.example` for a ready-to-copy template):
 
 ```
 # Preferred
-MONGODB_URI=mongodb://localhost:27017/network_devices
+MONGODB_URI=mongodb+srv://<user>:<pass>@<cluster-host>/<db>?retryWrites=true&w=majority&appName=myapp
 MONGODB_DB_NAME=network_devices
 MONGODB_COLLECTION=device
-MONGODB_TLS=false
 MONGODB_CONNECT_TIMEOUT_MS=5000
 
 # Or construct from parts (if MONGODB_URI is not provided)
@@ -56,7 +56,10 @@ MONGODB_CONNECT_TIMEOUT_MS=5000
 # MONGODB_OPTIONS=
 ```
 
-Note: Do not commit your real `.env` file. Provide environment variables via your deployment system.
+Note:
+- Do not commit your real `.env` file. Provide environment variables via your deployment system.
+- If your platform exposes variables with REACT_APP_* prefix (e.g., `REACT_APP_MONGODB_URI` or `REACT_APP_MONGODB_DB_NAME`),
+  the backend will automatically map them to MONGODB_* counterparts if the direct vars are not set.
 
 ## Database and Indexes
 
@@ -111,9 +114,7 @@ Development:
 
 1) Configure environment
    - Copy `.env.example` to `.env` and fill in values (prefer MONGODB_URI).
-   - If using a configuration panel that exposes variables with REACT_APP_ prefix (e.g. `REACT_APP_MONGODB_URI`),
-     the backend will automatically map these to the corresponding backend variables at runtime if the direct
-     MONGODB_* variables are not set. You may still prefer setting MONGODB_* directly for clarity.
+   - The backend attempts a MongoDB ping on startup and fails fast if connection is not possible.
 
 2) Install dependencies
 ```
@@ -153,4 +154,4 @@ python BackendAPIService/generate_openapi.py
 - If `MONGODB_DB_NAME` provided, it is used: Supported by `DEFAULT_DB_NAME` override and client setup.
 - Graceful error handling and clear logs if connection fails: `get_client` raises `RuntimeError` with details; health endpoint surfaces errors.
 - Health endpoint `/health/db`: Implemented in `app/routes/health.py` returning {"status":"ok"} or {"status":"error","message":"..."} with appropriate HTTP status.
-- Env vars documented and `.env.example` added: Provided above.
+- Env vars documented and `.env.example` added: Provided above; includes Atlas guidance.

@@ -10,10 +10,8 @@ Quick links:
 Setup:
 1) Create and configure environment variables
    - Copy BackendAPIService/.env.example to BackendAPIService/.env
-   - Ensure MONGODB_URI is set to a reachable MongoDB instance (or provide fallback parts as documented in BackendAPIService/README.md).
-   - Optional vars supported: MONGODB_DB_NAME, MONGODB_TLS, MONGODB_CONNECT_TIMEOUT_MS, MONGODB_COLLECTION
-   - Fallback parts (used only when MONGODB_URI is empty): MONGODB_HOST, MONGODB_PORT, MONGODB_USERNAME, MONGODB_PASSWORD, MONGODB_OPTIONS
-   - Note: If your environment uses REACT_APP_* variables (e.g., REACT_APP_MONGODB_URI), the backend will automatically map them to the corresponding MONGODB_* variables at runtime if the backend vars are not set.
+   - Ensure MONGODB_URI is set to a reachable MongoDB instance (Atlas or local).
+   - Optionally set MONGODB_DB_NAME (default: network_devices). See BackendAPIService/README.md for details.
 
 2) Install dependencies
    cd BackendAPIService
@@ -22,7 +20,3 @@ Setup:
 3) Run the app
    python run.py
    The API will listen on http://localhost:3001 (Flask default development server).
-
-Health checks:
-- Service health: GET http://localhost:3001/
-- Database health: GET http://localhost:3001/health/db -> {"status":"ok"} when MongoDB is reachable

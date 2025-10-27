@@ -118,7 +118,7 @@ class DevicesList(MethodView):
         Create a device.
         Enforces unique ip_address; returns 400 with { field, message } if duplicate.
         """
-        coll = get_collection("devices")
+        coll = get_collection(DEVICES_COLLECTION)
         doc = dict(json_data)
         doc.update(_timestamps_for_create())
         try:
