@@ -2,6 +2,7 @@ from flask_smorest import Blueprint
 from flask.views import MethodView
 from app import db as _db  # use db.ping for health
 from flask import jsonify
+import logging
 
 blp = Blueprint("Health", "health", url_prefix="/", description="Health check route")
 
@@ -25,12 +26,20 @@ class DBHealth(MethodView):
         GET /health/db
         Summary: Verify database connectivity.
         Returns:
-          200: {"status": "ok"} when MongoDB ping succeeds
+          200: {"status": "ok", "server": {"ok": 1.0}} on success with minimal server info
           500: {"status": "error", "message": "<details>"} when connectivity fails
         """
-        ok, err = _db.ping()
-        if ok:
-            # Success format required by task
-            return jsonify({"status": "ok"}), 200
-        # Error format and 500 status required by task, include actionable context
-        return jsonify({"status": "error", "message": err}), 500
+        try:
+            # Use global client to get minimal server info without exposing sensitive details
+            client = _db.get_client()
+            # Mongo 'ping' along with basic admin info
+            ping_result = client.admin.command("ping")  # {'ok': 1.0} on success
+            # Only include minimal non-sensitive info
+            server_info = {"ok": ping_result.get("ok", 0)}
+            return jsonify({"status": "ok", "server": server_info}), 200
+        except Exception as e:
+            # Fallback to standard ping error details from helper for actionable message
+            ok, err = _db.ping()
+            # Optional logging without leaking secrets
+            logging.getLogger(__name__).error("DB healthcheck failed: %s", err or str(e))
+            return jsonify({"status": "error", "message": err or "Database ping failed"}), 500
