@@ -81,9 +81,9 @@ The `app/db.py` module exposes the following functions:
 Example usage within a route:
 
 ```python
-from app.db import get_collection
+from app.db import get_collection, DEVICES_COLLECTION
 
-devices = get_collection("devices")
+devices = get_collection(DEVICES_COLLECTION)  # uses env MONGODB_COLLECTION (default: "device")
 device = devices.find_one({"ip_address": "192.168.1.10"})
 ```
 

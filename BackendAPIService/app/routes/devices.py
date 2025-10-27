@@ -133,7 +133,7 @@ class DevicesList(MethodView):
 class DeviceItem(MethodView):
     @blp.response(200, DeviceOutSchema, description="Get a device by id")
     def get(self, id: str):
-        coll = get_collection("devices")
+        coll = get_collection(DEVICES_COLLECTION)
         doc = coll.find_one({"_id": _objid(id)})
         if not doc:
             abort(404, message="Device not found")
@@ -142,7 +142,7 @@ class DeviceItem(MethodView):
     @blp.arguments(DeviceUpdateSchema, location="json")
     @blp.response(200, DeviceOutSchema, description="Update a device by id")
     def put(self, json_data, id: str):
-        coll = get_collection("devices")
+        coll = get_collection(DEVICES_COLLECTION)
         update_fields = dict(json_data)
         if not update_fields:
             abort(400, message="No fields provided for update")
@@ -161,7 +161,7 @@ class DeviceItem(MethodView):
 
     @blp.response(204, description="Delete a device by id")
     def delete(self, id: str):
-        coll = get_collection("devices")
+        coll = get_collection(DEVICES_COLLECTION)
         res = coll.delete_one({"_id": _objid(id)})
         if res.deleted_count == 0:
             abort(404, message="Device not found")
@@ -177,7 +177,7 @@ class DevicePing(MethodView):
         - status ('online' or 'offline')
         - last_checked (UTC timestamp)
         """
-        coll = get_collection("devices")
+        coll = get_collection(DEVICES_COLLECTION)
         doc = coll.find_one({"_id": _objid(id)})
         if not doc:
             abort(404, message="Device not found")
