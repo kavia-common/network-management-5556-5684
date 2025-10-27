@@ -85,12 +85,6 @@ class DevicesList(MethodView):
         - Otherwise returns full array for convenience (legacy behavior).
         """
         coll = get_collection(DEVICES_COLLECTION)
-        # diagnostics: collection in use and total count
-        try:
-            total_docs = coll.estimated_document_count()
-            print(f"[DevicesList] Using collection='{DEVICES_COLLECTION}' estimated_total={total_docs}")
-        except Exception as e:
-            print(f"[DevicesList] Diagnostics failed for collection='{DEVICES_COLLECTION}': {e}")
         # pagination params
         page_param = request.args.get("page")
         limit_param = request.args.get("limit")
@@ -113,20 +107,9 @@ class DevicesList(MethodView):
                 "limit": limit,
             }
         else:
-            # Non-paginated path: previously returned a raw array, but the @blp.response decorator
-            # for this route uses DeviceListOutSchema (object with 'items', 'total', 'page', 'limit').
-            # Returning a bare list under that schema led to an empty object {} response.
-            # To ensure documents are returned and to keep documentation consistency,
-            # we wrap results in the same envelope shape.
             items = list(coll.find({}).sort("created_at", -1))
-            dumped = DeviceOutSchema(many=True).dump(items)
-            total = len(dumped)
-            return {
-                "items": dumped,
-                "total": total,
-                "page": 1,
-                "limit": total,
-            }
+            # Return array only
+            return DeviceOutSchema(many=True).dump(items)
 
     @blp.arguments(DeviceCreateSchema, location="json")
     @blp.response(201, DeviceOutSchema, description="Create a new device")
@@ -135,7 +118,7 @@ class DevicesList(MethodView):
         Create a device.
         Enforces unique ip_address; returns 400 with { field, message } if duplicate.
         """
-        coll = get_collection(DEVICES_COLLECTION)
+        coll = get_collection("devices")
         doc = dict(json_data)
         doc.update(_timestamps_for_create())
         try:
@@ -150,8 +133,7 @@ class DevicesList(MethodView):
 class DeviceItem(MethodView):
     @blp.response(200, DeviceOutSchema, description="Get a device by id")
     def get(self, id: str):
-        coll = get_collection(DEVICES_COLLECTION)
-        print(f"[DevicePing] Using collection='{DEVICES_COLLECTION}' for id={id}")
+        coll = get_collection("devices")
         doc = coll.find_one({"_id": _objid(id)})
         if not doc:
             abort(404, message="Device not found")
@@ -160,7 +142,7 @@ class DeviceItem(MethodView):
     @blp.arguments(DeviceUpdateSchema, location="json")
     @blp.response(200, DeviceOutSchema, description="Update a device by id")
     def put(self, json_data, id: str):
-        coll = get_collection(DEVICES_COLLECTION)
+        coll = get_collection("devices")
         update_fields = dict(json_data)
         if not update_fields:
             abort(400, message="No fields provided for update")
