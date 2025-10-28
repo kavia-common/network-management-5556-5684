@@ -39,15 +39,27 @@ Fallback individual settings (used only if MONGODB_URI is not set and at least o
 - MONGODB_PASSWORD (optional)
 - MONGODB_OPTIONS (optional, query string without leading `?`, e.g. `replicaSet=rs0&authSource=admin`)
 
-CORS / Frontend integration:
-- FRONTEND_ORIGIN (optional)
-  - A single origin allowed to access the API via CORS, e.g. `http://localhost:3000` or `https://<preview-host>:3000`.
-  - If not set, development-safe defaults are used: `http://localhost:3000` and the current preview host on port 3000.
-- ADDITIONAL_CORS_ORIGINS (optional)
-  - Comma-separated list of additional origins to allow.
+## CORS / Frontend integration
+
+The backend uses `flask-cors` and enables CORS for specific frontend origins using an allowlist.
+
+- FRONTEND_ORIGIN_ALLOWLIST (optional, comma-separated)
+  - A comma-separated list of allowed origins (scheme + host + port), e.g.:
+    `http://localhost:3000,http://127.0.0.1:3000,https://my-preview.example.com:3000`
+  - If not set, development-safe defaults are used:
+    - http://localhost:3000
+    - http://127.0.0.1:3000
+    - http://vscode-internal-34539-beta.beta01.cloud.kavia.ai:3000
+    - http://vscode-internal-34539-beta.beta01.cloud.kavia.ai:3001
+- Behavior:
+  - Allowed methods: GET, POST, PUT, PATCH, DELETE, OPTIONS
+  - Allowed headers: Content-Type, Authorization, X-Requested-With
+  - Exposed headers: Content-Type, Content-Length, X-Request-Id
+  - Credentials: disabled by default (supports_credentials: false)
 - Notes:
-  - In production, set `FRONTEND_ORIGIN` to your deployed frontend URL to restrict access.
-  - CORS is initialized in `app/__init__.py` using `flask-cors`.
+  - This configuration ensures preflight (OPTIONS) requests succeed.
+  - If you need cookie-based auth in the future, set supports_credentials to true and ensure your frontend uses proper cookie settings.
+  - CORS is initialized in `app/__init__.py`.
 
 Example `.env` content (see `.env.example` for a ready-to-copy template):
 
@@ -58,9 +70,8 @@ MONGODB_DB_NAME=network_devices
 MONGODB_COLLECTION=device
 MONGODB_CONNECT_TIMEOUT_MS=5000
 
-# Optional CORS tightening (recommended for production)
-# FRONTEND_ORIGIN=https://my-frontend.example.com
-# ADDITIONAL_CORS_ORIGINS=https://admin.example.com,https://staging.example.com
+# CORS allowlist (add your preview host here if needed)
+# FRONTEND_ORIGIN_ALLOWLIST=http://localhost:3000,http://127.0.0.1:3000,https://my-preview.example.com:3000
 
 # Or construct from parts (if MONGODB_URI is not provided)
 # MONGODB_HOST=localhost
@@ -129,7 +140,7 @@ Development:
 
 1) Configure environment
    - Copy `.env.example` to `.env` and fill in values (prefer MONGODB_URI).
-   - Optionally set `FRONTEND_ORIGIN` to your frontend dev URL (e.g., http://localhost:3000).
+   - Optionally set `FRONTEND_ORIGIN_ALLOWLIST` to include your preview/dev host (e.g., http://localhost:3000).
    - The backend attempts a MongoDB ping on startup and fails fast if connection is not possible.
 
 2) Install dependencies
@@ -161,7 +172,7 @@ python BackendAPIService/generate_openapi.py
 - Test the DB health endpoint:
   - curl: `curl -s http://localhost:3001/health/db`
   - Expected response: `{"status":"ok"}` when the database is reachable.
-  - On failure, you'll get: `{"status":"error","message":"<details> | target=mongodb://***@host:port/db tls=false timeout_ms=5000 | hint: ..."}` with HTTP 500.
+  - On failure, you'll get: `{"status":"error","message":"<details> | target=mongodb://***@host:port/db tls=false timeout_ms=5000 | hint: ..."}`
     The target fields are masked to avoid leaking credentials and include effective TLS and timeout values.
 
 ## Acceptance Criteria Mapping
@@ -171,4 +182,4 @@ python BackendAPIService/generate_openapi.py
 - Graceful error handling and clear logs if connection fails: `get_client` raises `RuntimeError` with details; health endpoint surfaces errors.
 - Health endpoint `/health/db`: Implemented in `app/routes/health.py` returning {"status":"ok"} or {"status":"error","message":"..."} with appropriate HTTP status.
 - Env vars documented and `.env.example` added: Provided above; includes Atlas guidance.
-- CORS enabled and configurable via env: Implemented in `app/__init__.py` using `flask-cors`. Use `FRONTEND_ORIGIN` to restrict in production.
+- CORS enabled and configurable via env: Implemented in `app/__init__.py` using `flask-cors` with FRONTEND_ORIGIN_ALLOWLIST allowlist and secure defaults.

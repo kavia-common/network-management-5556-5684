@@ -41,48 +41,40 @@ app.url_map.strict_slashes = False
 # -------------------------
 # CORS configuration
 # -------------------------
-# We allow configuring the exact frontend origin via FRONTEND_ORIGIN.
-# For development, we default to permissive but safe origins commonly used by React dev servers.
+# Configure precise allowed origins via FRONTEND_ORIGIN_ALLOWLIST (comma-separated).
+# Defaults cover localhost and the common vscode-internal preview host ports (3000/3001).
 #
 # Environment variables:
-# - FRONTEND_ORIGIN: A single origin (e.g., "http://localhost:3000" or "https://<preview-host>:3000")
-#   If set, only that origin will be allowed.
-# - ADDITIONAL_CORS_ORIGINS: Comma-separated list of extra origins to allow (optional).
+# - FRONTEND_ORIGIN_ALLOWLIST (comma-separated)
+#     Defaults to:
+#       http://localhost:3000,
+#       http://127.0.0.1:3000,
+#       http://vscode-internal-34539-beta.beta01.cloud.kavia.ai:3000,
+#       http://vscode-internal-34539-beta.beta01.cloud.kavia.ai:3001
+# - Note: credentials are disabled (supports_credentials=False) unless the app adopts cookies.
 #
-# Notes:
-# - In development we enable credentials and common methods/headers.
-# - Restrict FRONTEND_ORIGIN in production deployments.
-frontend_origin = os.environ.get("FRONTEND_ORIGIN")
-additional_origins = os.environ.get("ADDITIONAL_CORS_ORIGINS", "")
-
-default_dev_origins = [
+# Allowed methods/headers include OPTIONS to ensure preflight succeeds.
+default_allowlist = [
     "http://localhost:3000",
-    "https://vscode-internal-34539-beta.beta01.cloud.kavia.ai:3000",
+    "http://127.0.0.1:3000",
+    "http://vscode-internal-34539-beta.beta01.cloud.kavia.ai:3000",
+    "http://vscode-internal-34539-beta.beta01.cloud.kavia.ai:3001",
 ]
-
-allowed_origins = []
-if frontend_origin:
-    allowed_origins.append(frontend_origin.strip())
+env_allowlist = os.environ.get("FRONTEND_ORIGIN_ALLOWLIST", "")
+if env_allowlist.strip():
+    origins = [o.strip() for o in env_allowlist.split(",") if o.strip()]
 else:
-    # Use development-friendly defaults
-    allowed_origins.extend(default_dev_origins)
-
-if additional_origins:
-    allowed_origins.extend([o.strip() for o in additional_origins.split(",") if o.strip()])
+    origins = list(default_allowlist)
 
 # De-duplicate while preserving order
-seen = set()
-allowed_origins = [o for o in allowed_origins if not (o in seen or seen.add(o))]
-
-# In development, if FRONTEND_ORIGIN is not explicitly set, default to permissive "*"
-# This avoids CORS failures on ephemeral preview hostnames.
-cors_origins = allowed_origins if frontend_origin else "*"
+_seen = set()
+origins = [o for o in origins if not (o in _seen or _seen.add(o))]
 
 CORS(
     app,
-    resources={r"/*": {"origins": cors_origins}},
-    supports_credentials=True,
-    methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    resources={r"/*": {"origins": origins}},
+    supports_credentials=False,
+    methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["Content-Type", "Authorization", "X-Requested-With"],
     expose_headers=["Content-Type", "Content-Length", "X-Request-Id"],
 )
