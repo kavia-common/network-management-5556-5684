@@ -14,7 +14,11 @@ blp = Blueprint("Health", "health", url_prefix="/", description="Health check ro
 class HealthCheck(MethodView):
     """Simple health check endpoint."""
     def get(self):
-        """Return service health."""
+        """
+        Return service health.
+        Returns:
+          200: {"message": "Healthy"}
+        """
         return {"message": "Healthy"}
 
 

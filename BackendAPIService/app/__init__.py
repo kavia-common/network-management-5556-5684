@@ -88,6 +88,11 @@ CORS(
     allow_headers=["Content-Type", "Authorization", "X-Requested-With"],
     expose_headers=["Content-Type", "Content-Length", "X-Request-Id"],
 )
+# Minimal startup diagnostics for CORS
+try:
+    print(f"[Startup][INFO] CORS allowed origins: {cors_origins}")
+except Exception:
+    pass
 
 # Configure API documentation
 app.config["API_TITLE"] = "Network Devices API"
@@ -167,6 +172,13 @@ def handle_unexpected_exception(e: Exception):
 # Health endpoint will still report detailed DB errors.
 try:
     _db.get_client()  # initializes client and ensures indexes; will ping internally
+    # After client init, log effective DB name and devices collection
+    try:
+        effective_db = _db.get_db()
+        from .db import DEVICES_COLLECTION as _DEV_COLL  # local import to avoid circulars
+        print(f"[Startup][INFO] MongoDB initialized: db='{effective_db.name}', collection='{_DEV_COLL}'")
+    except Exception as _e_db:
+        print(f"[Startup][WARN] Could not determine DB/collection after init: {_e_db}")
 except Exception as e:
     # Log warning without crashing so the API (including /health) can start.
     print(f"[Startup][WARN] MongoDB initialization failed (continuing to start API): {e}")
