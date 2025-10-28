@@ -33,7 +33,16 @@ from . import db as _db  # noqa: F401
 
 app = Flask(__name__)
 app.url_map.strict_slashes = False
-CORS(app, resources={r"/*": {"origins": "*"}})
+
+# Configure CORS for React frontend on http://localhost:3000 covering all routes.
+# Allow standard methods and common headers; enable credentials support for future use.
+CORS(
+    app,
+    resources={r"/*": {"origins": ["http://localhost:3000"]}},
+    supports_credentials=True,
+    methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["Content-Type", "Authorization"],
+)
 
 # Configure API documentation
 app.config["API_TITLE"] = "Network Devices API"
