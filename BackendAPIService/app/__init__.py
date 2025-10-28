@@ -70,9 +70,13 @@ if additional_origins:
 seen = set()
 allowed_origins = [o for o in allowed_origins if not (o in seen or seen.add(o))]
 
+# In development, if FRONTEND_ORIGIN is not explicitly set, default to permissive "*"
+# This avoids CORS failures on ephemeral preview hostnames.
+cors_origins = allowed_origins if frontend_origin else "*"
+
 CORS(
     app,
-    resources={r"/*": {"origins": allowed_origins or "*"}},
+    resources={r"/*": {"origins": cors_origins}},
     supports_credentials=True,
     methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["Content-Type", "Authorization", "X-Requested-With"],

@@ -79,8 +79,11 @@ def _safe_ping(ip: str) -> Tuple[str, Optional[datetime]]:
     return "offline", last
 
 
-@blp.route("")
+@blp.route("", methods=["GET", "POST", "OPTIONS"])
 class DevicesList(MethodView):
+    def options(self):
+        # Preflight response for CORS
+        return Response(status=204)
     @blp.response(200, DeviceListOutSchema, description="List devices with pagination envelope")
     def get(self):
         """
@@ -156,7 +159,15 @@ class DevicesList(MethodView):
         except DuplicateKeyError:
             abort(400, error={"field": "ip_address", "message": "already exists"})
         created = coll.find_one({"_id": res.inserted_id})
-        return created
+        # Serialize via schema for consistency, then return explicit JSON Response
+        from app.schemas import serialize_device
+        payload = serialize_device(created)
+        return Response(
+            response=json.dumps(payload),
+            status=201,
+            mimetype="application/json",
+            content_type="application/json; charset=utf-8",
+        )
 
 
 @blp.route("/raw")
@@ -222,8 +233,10 @@ class DeviceItem(MethodView):
         return ""  # 204 No Content
 
 
-@blp.route("/<string:id>/ping")
+@blp.route("/<string:id>/ping", methods=["POST", "OPTIONS"])
 class DevicePing(MethodView):
+    def options(self, id: str):
+        return Response(status=204)
     @blp.response(200, DeviceOutSchema, description="Ping a device and update its status")
     def post(self, id: str):
         """
