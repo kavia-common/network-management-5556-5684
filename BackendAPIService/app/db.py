@@ -26,7 +26,7 @@ _client_lock = threading.Lock()
 _client: Optional[MongoClient] = None
 _db: Optional[Database] = None
 
-DEFAULT_DB_NAME = "network_devices"  # Default DB per task requirement
+DEFAULT_DB_NAME = "network"  # Default DB per updated requirement; can be overridden via MONGODB_DB_NAME
 # Devices collection name will be read from env var MONGODB_COLLECTION with default 'device'
 DEVICES_COLLECTION = os.environ.get("MONGODB_COLLECTION", "device")
 

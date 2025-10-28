@@ -23,11 +23,13 @@ Note: The app loads variables from a `.env` file automatically using `python-dot
 Preferred single-URI configuration:
 - MONGODB_URI (preferred)
   - MongoDB connection URI. Works with Atlas `mongodb+srv://` or standard `mongodb://`.
-  - Example (Local): `mongodb://localhost:27017/network_devices`
-  - Example (Atlas): `mongodb+srv://<user>:<pass>@cluster0.mongodb.net/network_devices?retryWrites=true&w=majority&appName=myapp`
+  - Example (Local): `mongodb://localhost:27017/network`
+  - Example (Atlas): `mongodb+srv://<user>:<pass>@cluster0.mongodb.net/network?retryWrites=true&w=majority&appName=myapp`
+  - If your URI includes a database path segment (e.g., `/network`), that DB will be used unless you explicitly set MONGODB_DB_NAME to override it.
 
 Common settings:
-- MONGODB_DB_NAME (optional, default: `network_devices`)
+- MONGODB_DB_NAME (optional, default: `network`)
+  - Overrides the database name even if the MONGODB_URI contains a DB path.
 - MONGODB_COLLECTION (optional, default: `device`) — collection used by the app; indexes are created here
 - MONGODB_TLS (optional, `true` enables TLS)
 - MONGODB_CONNECT_TIMEOUT_MS (optional, default: `5000`)
@@ -65,9 +67,10 @@ The backend uses `flask-cors` and enables CORS for specific frontend origins usi
 Example `.env` content (see `.env.example` for a ready-to-copy template):
 
 ```
-# Preferred
-MONGODB_URI=mongodb+srv://<user>:<pass>@<cluster-host>/<db>?retryWrites=true&w=majority&appName=myapp
-MONGODB_DB_NAME=network_devices
+# Preferred (Atlas or standard)
+MONGODB_URI=mongodb+srv://<user>:<pass>@<cluster-host>/network?retryWrites=true&w=majority&appName=myapp
+# Optional: override DB name even if it is present in the URI
+MONGODB_DB_NAME=network
 MONGODB_COLLECTION=device
 MONGODB_CONNECT_TIMEOUT_MS=5000
 
@@ -88,6 +91,11 @@ FRONTEND_ORIGIN_ALLOWLIST=http://vscode-internal-34539-beta.beta01.cloud.kavia.a
 # MONGODB_OPTIONS=
 ```
 
+Migration note:
+- Previous default database name was `network_devices`. Existing data will remain there.
+- Switching the default to `network` means you may see empty data unless you migrate documents from `network_devices` to `network`.
+- You can continue to use the old database by setting `MONGODB_DB_NAME=network_devices`, or include `/network_devices` in your MONGODB_URI.
+
 Important:
 - If FRONTEND_ORIGIN_ALLOWLIST is already set in your environment, append `http://vscode-internal-34539-beta.beta01.cloud.kavia.ai:3000` and `https://vscode-internal-26250-beta.beta01.cloud.kavia.ai:3000` to the comma-separated list instead of replacing existing entries.
 - After changing environment variables, you MUST restart the backend service (stop and start your preview) so the new CORS settings take effect. Flask does not automatically reload environment variable changes.
@@ -100,6 +108,11 @@ Note:
 ## Database and Indexes
 
 On startup, the app initializes a singleton `MongoClient`, verifies connectivity using `admin.command('ping')`, and ensures indexes on the `device` collection (or collection specified via `MONGODB_COLLECTION`):
+
+Migration note:
+- The default database name has changed from `network_devices` to `network`.
+- Existing data remains in `network_devices`. If you switch to the new default, your app will start with an empty dataset unless you migrate.
+- To continue using your existing data without migration, set `MONGODB_DB_NAME=network_devices` or include `/network_devices` in `MONGODB_URI`.
 
 - Unique index on `ip_address` (name: `uniq_ip`)
 - Index on `type` (name: `idx_type`)
