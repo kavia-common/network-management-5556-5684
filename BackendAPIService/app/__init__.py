@@ -99,6 +99,34 @@ api = Api(app)
 api.register_blueprint(health_blp)
 api.register_blueprint(devices_blp)
 
+# Global JSON error handling to ensure clients always receive JSON with proper content type
+from werkzeug.exceptions import HTTPException
+from flask import jsonify, request
+
+@app.errorhandler(HTTPException)
+def handle_http_exception(e: HTTPException):
+    # Build a consistent JSON body
+    response = {
+        "status": e.name,
+        "code": e.code,
+        "message": e.description if isinstance(e.description, str) else str(e.description),
+        "path": request.path,
+    }
+    return jsonify(response), e.code
+
+@app.errorhandler(Exception)
+def handle_unexpected_exception(e: Exception):
+    # Do not leak internals; provide a generic message and status 500
+    # Include minimal path for diagnostics
+    print(f"[ERROR] Unhandled exception at {request.path}: {e}")
+    response = {
+        "status": "Internal Server Error",
+        "code": 500,
+        "message": "An unexpected error occurred while processing the request.",
+        "path": request.path,
+    }
+    return jsonify(response), 500
+
 # Try DB initialization on startup to surface issues early, but do not abort the app.
 # Health endpoint will still report detailed DB errors.
 try:

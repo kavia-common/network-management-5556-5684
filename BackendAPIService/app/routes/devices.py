@@ -96,53 +96,64 @@ class DevicesList(MethodView):
         Diagnostics:
           Logs computed page/limit, total count, item count, and content type.
         """
-        coll = get_collection(DEVICES_COLLECTION)
-
-        # Resolve pagination with safe defaults
-        page_param = request.args.get("page")
-        limit_param = request.args.get("limit")
         try:
-            page = int(page_param) if page_param is not None else 1
-            limit = int(limit_param) if limit_param is not None else 10
-            if page < 1 or limit < 1 or limit > 1000:
-                raise ValueError
-        except ValueError:
-            abort(400, message="Invalid pagination parameters")
+            coll = get_collection(DEVICES_COLLECTION)
 
-        total = coll.count_documents({})
-        cursor = (
-            coll.find({})
-            .sort("created_at", -1)
-            .skip((page - 1) * limit)
-            .limit(limit)
-        )
-        raw_items: List[Dict[str, Any]] = list(cursor)
-        items = serialize_devices(raw_items)  # ensures ObjectId->str and datetime ISO via schema
+            # Resolve pagination with safe defaults
+            page_param = request.args.get("page")
+            limit_param = request.args.get("limit")
+            try:
+                page = int(page_param) if page_param is not None else 1
+                limit = int(limit_param) if limit_param is not None else 10
+                if page < 1 or limit < 1 or limit > 1000:
+                    raise ValueError
+            except ValueError:
+                abort(400, message="Invalid pagination parameters")
 
-        payload = {
-            "items": items,
-            "total": total,
-            "page": page,
-            "limit": limit,
-        }
+            total = coll.count_documents({})
+            cursor = (
+                coll.find({})
+                .sort("created_at", -1)
+                .skip((page - 1) * limit)
+                .limit(limit)
+            )
+            raw_items: List[Dict[str, Any]] = list(cursor)
+            items = serialize_devices(raw_items)  # ensures ObjectId->str and datetime ISO via schema
 
-        # Structured diagnostics
-        logger.info(
-            "GET /devices diagnostics | page=%s limit=%s total=%s item_count=%s content_type=%s",
-            page,
-            limit,
-            total,
-            len(items),
-            "application/json; charset=utf-8",
-        )
+            payload = {
+                "items": items,
+                "total": total,
+                "page": page,
+                "limit": limit,
+            }
 
-        # Explicit response with content-type
-        return Response(
-            response=json.dumps(payload),
-            status=200,
-            mimetype="application/json",
-            content_type="application/json; charset=utf-8",
-        )
+            # Structured diagnostics
+            logger.info(
+                "GET /devices diagnostics | page=%s limit=%s total=%s item_count=%s content_type=%s",
+                page,
+                limit,
+                total,
+                len(items),
+                "application/json; charset=utf-8",
+            )
+
+            # Explicit response with content-type
+            return Response(
+                response=json.dumps(payload),
+                status=200,
+                mimetype="application/json",
+                content_type="application/json; charset=utf-8",
+            )
+        except Exception as e:
+            # Serialize DB/other errors to JSON to prevent fetch parse failures
+            logger.error("GET /devices failed: %s", str(e))
+            err_payload = {"status": "error", "message": str(e)}
+            return Response(
+                response=json.dumps(err_payload),
+                status=500,
+                mimetype="application/json",
+                content_type="application/json; charset=utf-8",
+            )
 
     @blp.arguments(DeviceCreateSchema, location="json")
     @blp.response(201, DeviceOutSchema, description="Create a new device")
@@ -151,23 +162,33 @@ class DevicesList(MethodView):
         Create a device.
         Enforces unique ip_address; returns 400 with { field, message } if duplicate.
         """
-        coll = get_collection(DEVICES_COLLECTION)
-        doc = dict(json_data)
-        doc.update(_timestamps_for_create())
         try:
-            res = coll.insert_one(doc)
-        except DuplicateKeyError:
-            abort(400, error={"field": "ip_address", "message": "already exists"})
-        created = coll.find_one({"_id": res.inserted_id})
-        # Serialize via schema for consistency, then return explicit JSON Response
-        from app.schemas import serialize_device
-        payload = serialize_device(created)
-        return Response(
-            response=json.dumps(payload),
-            status=201,
-            mimetype="application/json",
-            content_type="application/json; charset=utf-8",
-        )
+            coll = get_collection(DEVICES_COLLECTION)
+            doc = dict(json_data)
+            doc.update(_timestamps_for_create())
+            try:
+                res = coll.insert_one(doc)
+            except DuplicateKeyError:
+                abort(400, error={"field": "ip_address", "message": "already exists"})
+            created = coll.find_one({"_id": res.inserted_id})
+            # Serialize via schema for consistency, then return explicit JSON Response
+            from app.schemas import serialize_device
+            payload = serialize_device(created)
+            return Response(
+                response=json.dumps(payload),
+                status=201,
+                mimetype="application/json",
+                content_type="application/json; charset=utf-8",
+            )
+        except Exception as e:
+            logger.error("POST /devices failed: %s", str(e))
+            err_payload = {"status": "error", "message": str(e)}
+            return Response(
+                response=json.dumps(err_payload),
+                status=500,
+                mimetype="application/json",
+                content_type="application/json; charset=utf-8",
+            )
 
 
 @blp.route("/raw")
@@ -178,59 +199,95 @@ class DevicesListRaw(MethodView):
         Debugging endpoint returning a raw array.
         This endpoint returns the plain list of devices (serialized) without envelope.
         """
-        coll = get_collection(DEVICES_COLLECTION)
-        docs = list(coll.find({}).sort("created_at", -1))
-        items = serialize_devices(docs)
-        logger.info(
-            "GET /devices/raw diagnostics | item_count=%s content_type=%s",
-            len(items),
-            "application/json; charset=utf-8",
-        )
-        return Response(
-            response=json.dumps(items),
-            status=200,
-            mimetype="application/json",
-            content_type="application/json; charset=utf-8",
-        )
+        try:
+            coll = get_collection(DEVICES_COLLECTION)
+            docs = list(coll.find({}).sort("created_at", -1))
+            items = serialize_devices(docs)
+            logger.info(
+                "GET /devices/raw diagnostics | item_count=%s content_type=%s",
+                len(items),
+                "application/json; charset=utf-8",
+            )
+            return Response(
+                response=json.dumps(items),
+                status=200,
+                mimetype="application/json",
+                content_type="application/json; charset=utf-8",
+            )
+        except Exception as e:
+            logger.error("GET /devices/raw failed: %s", str(e))
+            return Response(
+                response=json.dumps({"status": "error", "message": str(e)}),
+                status=500,
+                mimetype="application/json",
+                content_type="application/json; charset=utf-8",
+            )
 
 
 @blp.route("/<string:id>")
 class DeviceItem(MethodView):
     @blp.response(200, DeviceOutSchema, description="Get a device by id")
     def get(self, id: str):
-        coll = get_collection(DEVICES_COLLECTION)
-        doc = coll.find_one({"_id": _objid(id)})
-        if not doc:
-            abort(404, message="Device not found")
-        return doc
+        try:
+            coll = get_collection(DEVICES_COLLECTION)
+            doc = coll.find_one({"_id": _objid(id)})
+            if not doc:
+                abort(404, message="Device not found")
+            return doc
+        except Exception as e:
+            logger.error("GET /devices/%s failed: %s", id, str(e))
+            return Response(
+                response=json.dumps({"status": "error", "message": str(e)}),
+                status=500,
+                mimetype="application/json",
+                content_type="application/json; charset=utf-8",
+            )
 
     @blp.arguments(DeviceUpdateSchema, location="json")
     @blp.response(200, DeviceOutSchema, description="Update a device by id")
     def put(self, json_data, id: str):
-        coll = get_collection(DEVICES_COLLECTION)
-        update_fields = dict(json_data)
-        if not update_fields:
-            abort(400, message="No fields provided for update")
-        update_fields.update(_timestamp_for_update())
         try:
-            res = coll.find_one_and_update(
-                {"_id": _objid(id)},
-                {"$set": update_fields},
-                return_document=True,  # type: ignore[arg-type]
+            coll = get_collection(DEVICES_COLLECTION)
+            update_fields = dict(json_data)
+            if not update_fields:
+                abort(400, message="No fields provided for update")
+            update_fields.update(_timestamp_for_update())
+            try:
+                res = coll.find_one_and_update(
+                    {"_id": _objid(id)},
+                    {"$set": update_fields},
+                    return_document=True,  # type: ignore[arg-type]
+                )
+            except DuplicateKeyError:
+                abort(400, error={"field": "ip_address", "message": "already exists"})
+            if not res:
+                abort(404, message="Device not found")
+            return res
+        except Exception as e:
+            logger.error("PUT /devices/%s failed: %s", id, str(e))
+            return Response(
+                response=json.dumps({"status": "error", "message": str(e)}),
+                status=500,
+                mimetype="application/json",
+                content_type="application/json; charset=utf-8",
             )
-        except DuplicateKeyError:
-            abort(400, error={"field": "ip_address", "message": "already exists"})
-        if not res:
-            abort(404, message="Device not found")
-        return res
 
     @blp.response(204, description="Delete a device by id")
     def delete(self, id: str):
-        coll = get_collection(DEVICES_COLLECTION)
-        res = coll.delete_one({"_id": _objid(id)})
-        if res.deleted_count == 0:
-            abort(404, message="Device not found")
-        return ""  # 204 No Content
+        try:
+            coll = get_collection(DEVICES_COLLECTION)
+            res = coll.delete_one({"_id": _objid(id)})
+            if res.deleted_count == 0:
+                abort(404, message="Device not found")
+            return ""  # 204 No Content
+        except Exception as e:
+            logger.error("DELETE /devices/%s failed: %s", id, str(e))
+            return Response(
+                response=json.dumps({"status": "error", "message": str(e)}),
+                status=500,
+                mimetype="application/json",
+                content_type="application/json; charset=utf-8",
+            )
 
 
 @blp.route("/<string:id>/ping", methods=["POST", "OPTIONS"])
@@ -244,16 +301,25 @@ class DevicePing(MethodView):
         - status ('online' or 'offline')
         - last_checked (UTC timestamp)
         """
-        coll = get_collection(DEVICES_COLLECTION)
-        doc = coll.find_one({"_id": _objid(id)})
-        if not doc:
-            abort(404, message="Device not found")
+        try:
+            coll = get_collection(DEVICES_COLLECTION)
+            doc = coll.find_one({"_id": _objid(id)})
+            if not doc:
+                abort(404, message="Device not found")
 
-        ip = doc.get("ip_address")
-        status, last = _safe_ping(ip)
-        updated = coll.find_one_and_update(
-            {"_id": doc["_id"]},
-            {"$set": {"status": status, "last_checked": last, "updated_at": datetime.utcnow()}},
-            return_document=True,  # type: ignore[arg-type]
-        )
-        return updated
+            ip = doc.get("ip_address")
+            status, last = _safe_ping(ip)
+            updated = coll.find_one_and_update(
+                {"_id": doc["_id"]},
+                {"$set": {"status": status, "last_checked": last, "updated_at": datetime.utcnow()}},
+                return_document=True,  # type: ignore[arg-type]
+            )
+            return updated
+        except Exception as e:
+            logger.error("POST /devices/%s/ping failed: %s", id, str(e))
+            return Response(
+                response=json.dumps({"status": "error", "message": str(e)}),
+                status=500,
+                mimetype="application/json",
+                content_type="application/json; charset=utf-8",
+            )
