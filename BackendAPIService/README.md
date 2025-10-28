@@ -23,11 +23,11 @@ Note: The app loads variables from a `.env` file automatically using `python-dot
 Preferred single-URI configuration:
 - MONGODB_URI (preferred)
   - MongoDB connection URI. Works with Atlas `mongodb+srv://` or standard `mongodb://`.
-  - Example (Local): `mongodb://localhost:27017/network_devices`
-  - Example (Atlas): `mongodb+srv://<user>:<pass>@cluster0.mongodb.net/network_devices?retryWrites=true&w=majority&appName=myapp`
+  - Example (Local): `mongodb://localhost:27017/network`
+  - Example (Atlas): `mongodb+srv://<user>:<pass>@cluster0.mongodb.net/network?retryWrites=true&w=majority&appName=myapp`
 
 Common settings:
-- MONGODB_DB_NAME (optional, default: `network_devices`)
+- MONGODB_DB_NAME (optional, default: `network`)
 - MONGODB_COLLECTION (optional, default: `device`) — collection used by the app; indexes are created here
 - MONGODB_TLS (optional, `true` enables TLS)
 - MONGODB_CONNECT_TIMEOUT_MS (optional, default: `5000`)

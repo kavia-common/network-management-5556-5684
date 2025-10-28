@@ -48,6 +48,23 @@ class DBHealth(MethodView):
             return jsonify({"status": "error", "message": err or "Database ping failed"}), 500
 
 
+@blp.route("/health/db-name")
+class DBName(MethodView):
+    """Expose active database name for quick verification."""
+    def get(self):
+        """
+        GET /health/db-name
+        Summary: Return the active MongoDB database name.
+        Returns:
+          200: {"dbName": "<active db name>"}
+        """
+        try:
+            db = get_db()
+            return jsonify({"dbName": db.name}), 200
+        except Exception as e:
+            return jsonify({"error": "Failed to determine DB name", "message": str(e)}), 500
+
+
 @blp.route("/health/devices-summary")
 class DevicesSummary(MethodView):
     """

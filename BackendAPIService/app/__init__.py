@@ -57,6 +57,8 @@ additional_origins = os.environ.get("ADDITIONAL_CORS_ORIGINS", "")
 
 default_dev_origins = [
     "http://localhost:3000",
+    # Allow common kavia preview hosts on port 3000 for dev
+    "https://vscode-internal-26250-beta.beta01.cloud.kavia.ai:3000",
     "https://vscode-internal-34539-beta.beta01.cloud.kavia.ai:3000",
 ]
 

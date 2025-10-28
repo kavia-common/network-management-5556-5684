@@ -10,7 +10,7 @@ Quick links:
 Setup:
 1) Create and configure environment variables
    - Copy BackendAPIService/.env.example to BackendAPIService/.env
-   - Ensure MONGO_URI is set to a reachable MongoDB instance.
+   - Ensure MONGODB_URI is set to a reachable MongoDB instance.
 
 2) Install dependencies
    cd BackendAPIService
