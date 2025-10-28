@@ -53,6 +53,7 @@ CORS(
     methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     # Ensure common headers are allowed; covers content-type preflight
     allow_headers=["Content-Type", "Authorization", "X-Requested-With"],
+    expose_headers=["Content-Type", "Content-Length", "X-Request-Id"],
 )
 
 # Configure API documentation

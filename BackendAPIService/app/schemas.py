@@ -5,14 +5,22 @@ from marshmallow import Schema, fields, validate, ValidationError, pre_dump
 
 
 def _ipv4_validator(value: str) -> None:
-    """Validate IPv4 without external deps."""
-    parts = value.split(".")
+    """Validate IPv4 without external deps (accepts 0-255 per octet)."""
+    if value is None:
+        raise ValidationError("Invalid IPv4 address format")
+    v = str(value).strip()
+    parts = v.split(".")
     if len(parts) != 4:
         raise ValidationError("Invalid IPv4 address format")
     for p in parts:
+        if p == "":
+            raise ValidationError("Invalid IPv4 address format")
         if not p.isdigit():
             raise ValidationError("Invalid IPv4 address format")
-        n = int(p)
+        try:
+            n = int(p, 10)
+        except Exception:
+            raise ValidationError("Invalid IPv4 address format")
         if n < 0 or n > 255:
             raise ValidationError("Invalid IPv4 address octet out of range")
 
