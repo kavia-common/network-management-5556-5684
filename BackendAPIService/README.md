@@ -2,7 +2,7 @@
 
 Flask-based Backend API for Network Device Management.
 
-This service integrates with MongoDB via `pymongo` and exposes REST APIs (flask-smorest). This document covers environment variables, MongoDB configuration (Atlas-ready), and available endpoints.
+This service integrates with MongoDB via `pymongo` and exposes REST APIs (flask-smorest). This document covers environment variables, MongoDB configuration (Atlas-ready), CORS configuration, and available endpoints.
 
 ## Requirements
 
@@ -39,6 +39,16 @@ Fallback individual settings (used only if MONGODB_URI is not set and at least o
 - MONGODB_PASSWORD (optional)
 - MONGODB_OPTIONS (optional, query string without leading `?`, e.g. `replicaSet=rs0&authSource=admin`)
 
+CORS / Frontend integration:
+- FRONTEND_ORIGIN (optional)
+  - A single origin allowed to access the API via CORS, e.g. `http://localhost:3000` or `https://<preview-host>:3000`.
+  - If not set, development-safe defaults are used: `http://localhost:3000` and the current preview host on port 3000.
+- ADDITIONAL_CORS_ORIGINS (optional)
+  - Comma-separated list of additional origins to allow.
+- Notes:
+  - In production, set `FRONTEND_ORIGIN` to your deployed frontend URL to restrict access.
+  - CORS is initialized in `app/__init__.py` using `flask-cors`.
+
 Example `.env` content (see `.env.example` for a ready-to-copy template):
 
 ```
@@ -47,6 +57,10 @@ MONGODB_URI=mongodb+srv://<user>:<pass>@<cluster-host>/<db>?retryWrites=true&w=m
 MONGODB_DB_NAME=network_devices
 MONGODB_COLLECTION=device
 MONGODB_CONNECT_TIMEOUT_MS=5000
+
+# Optional CORS tightening (recommended for production)
+# FRONTEND_ORIGIN=https://my-frontend.example.com
+# ADDITIONAL_CORS_ORIGINS=https://admin.example.com,https://staging.example.com
 
 # Or construct from parts (if MONGODB_URI is not provided)
 # MONGODB_HOST=localhost
@@ -114,6 +128,7 @@ Development:
 
 1) Configure environment
    - Copy `.env.example` to `.env` and fill in values (prefer MONGODB_URI).
+   - Optionally set `FRONTEND_ORIGIN` to your frontend dev URL (e.g., http://localhost:3000).
    - The backend attempts a MongoDB ping on startup and fails fast if connection is not possible.
 
 2) Install dependencies
@@ -155,3 +170,4 @@ python BackendAPIService/generate_openapi.py
 - Graceful error handling and clear logs if connection fails: `get_client` raises `RuntimeError` with details; health endpoint surfaces errors.
 - Health endpoint `/health/db`: Implemented in `app/routes/health.py` returning {"status":"ok"} or {"status":"error","message":"..."} with appropriate HTTP status.
 - Env vars documented and `.env.example` added: Provided above; includes Atlas guidance.
+- CORS enabled and configurable via env: Implemented in `app/__init__.py` using `flask-cors`. Use `FRONTEND_ORIGIN` to restrict in production.

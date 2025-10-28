@@ -34,24 +34,47 @@ from . import db as _db  # noqa: F401
 app = Flask(__name__)
 app.url_map.strict_slashes = False
 
-# Configure CORS for React frontend on http://localhost:3000 covering all routes.
-# Allow standard methods and common headers; enable credentials support.
-# X-Requested-With inclusion improves compatibility with common AJAX libraries.
+# -------------------------
+# CORS configuration
+# -------------------------
+# We allow configuring the exact frontend origin via FRONTEND_ORIGIN.
+# For development, we default to permissive but safe origins commonly used by React dev servers.
+#
+# Environment variables:
+# - FRONTEND_ORIGIN: A single origin (e.g., "http://localhost:3000" or "https://<preview-host>:3000")
+#   If set, only that origin will be allowed.
+# - ADDITIONAL_CORS_ORIGINS: Comma-separated list of extra origins to allow (optional).
+#
+# Notes:
+# - In development we enable credentials and common methods/headers.
+# - Restrict FRONTEND_ORIGIN in production deployments.
+frontend_origin = os.environ.get("FRONTEND_ORIGIN")
+additional_origins = os.environ.get("ADDITIONAL_CORS_ORIGINS", "")
+
+default_dev_origins = [
+    "http://localhost:3000",
+    "https://vscode-internal-34539-beta.beta01.cloud.kavia.ai:3000",
+]
+
+allowed_origins = []
+if frontend_origin:
+    allowed_origins.append(frontend_origin.strip())
+else:
+    # Use development-friendly defaults
+    allowed_origins.extend(default_dev_origins)
+
+if additional_origins:
+    allowed_origins.extend([o.strip() for o in additional_origins.split(",") if o.strip()])
+
+# De-duplicate while preserving order
+seen = set()
+allowed_origins = [o for o in allowed_origins if not (o in seen or seen.add(o))]
+
 CORS(
     app,
-    # Allow both local dev and cloud preview origins
-    resources={
-        r"/*": {
-            "origins": [
-                "http://localhost:3000",
-                "https://vscode-internal-35190-beta.beta01.cloud.kavia.ai:3000",
-            ]
-        }
-    },
-    # Keep credentials support and standard methods
+    resources={r"/*": {"origins": allowed_origins or "*"}},
     supports_credentials=True,
     methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    # Ensure common headers are allowed; covers content-type preflight
     allow_headers=["Content-Type", "Authorization", "X-Requested-With"],
     expose_headers=["Content-Type", "Content-Length", "X-Request-Id"],
 )
