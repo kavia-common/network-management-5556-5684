@@ -62,10 +62,16 @@ default_allowlist = [
     "http://127.0.0.1:3000",
     "http://vscode-internal-34539-beta.beta01.cloud.kavia.ai:3000",
     "http://vscode-internal-34539-beta.beta01.cloud.kavia.ai:3001",
+    # Add HTTPS preview origin to avoid mixed-content and strict-origin issues
+    "https://vscode-internal-26250-beta.beta01.cloud.kavia.ai:3000",
 ]
 env_allowlist = os.environ.get("FRONTEND_ORIGIN_ALLOWLIST", "")
 if env_allowlist.strip():
     origins = [o.strip() for o in env_allowlist.split(",") if o.strip()]
+    # Ensure the required HTTPS origin is present even when env is set
+    required_https = "https://vscode-internal-26250-beta.beta01.cloud.kavia.ai:3000"
+    if required_https not in origins:
+        origins.append(required_https)
 else:
     origins = list(default_allowlist)
 

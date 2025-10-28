@@ -51,6 +51,7 @@ The backend uses `flask-cors` and enables CORS for specific frontend origins usi
     - http://127.0.0.1:3000
     - http://vscode-internal-34539-beta.beta01.cloud.kavia.ai:3000
     - http://vscode-internal-34539-beta.beta01.cloud.kavia.ai:3001
+    - https://vscode-internal-26250-beta.beta01.cloud.kavia.ai:3000
 - Behavior:
   - Allowed methods: GET, POST, PUT, PATCH, DELETE, OPTIONS
   - Allowed headers: Content-Type, Authorization, X-Requested-With
@@ -75,8 +76,9 @@ MONGODB_CONNECT_TIMEOUT_MS=5000
 # Local dev examples:
 # FRONTEND_ORIGIN_ALLOWLIST=http://localhost:3000,http://127.0.0.1:3000
 # vscode-internal preview (explicitly allowed for this workspace):
-# If you already have FRONTEND_ORIGIN_ALLOWLIST set, append the following origin to the comma-separated list.
-FRONTEND_ORIGIN_ALLOWLIST=http://vscode-internal-34539-beta.beta01.cloud.kavia.ai:3000
+# If you already have FRONTEND_ORIGIN_ALLOWLIST set, append the following origins to the comma-separated list.
+# Include HTTPS for the running frontend preview to avoid CORS/mixed content errors.
+FRONTEND_ORIGIN_ALLOWLIST=http://vscode-internal-34539-beta.beta01.cloud.kavia.ai:3000,https://vscode-internal-26250-beta.beta01.cloud.kavia.ai:3000
 
 # Or construct from parts (if MONGODB_URI is not provided)
 # MONGODB_HOST=localhost
@@ -87,8 +89,8 @@ FRONTEND_ORIGIN_ALLOWLIST=http://vscode-internal-34539-beta.beta01.cloud.kavia.a
 ```
 
 Important:
-- If FRONTEND_ORIGIN_ALLOWLIST is already set in your environment, append `http://vscode-internal-34539-beta.beta01.cloud.kavia.ai:3000` to the comma-separated list instead of replacing existing entries.
-- After changing environment variables, restart the backend service (stop and start your preview) so the new CORS settings take effect.
+- If FRONTEND_ORIGIN_ALLOWLIST is already set in your environment, append `http://vscode-internal-34539-beta.beta01.cloud.kavia.ai:3000` and `https://vscode-internal-26250-beta.beta01.cloud.kavia.ai:3000` to the comma-separated list instead of replacing existing entries.
+- After changing environment variables, you MUST restart the backend service (stop and start your preview) so the new CORS settings take effect. Flask does not automatically reload environment variable changes.
 
 Note:
 - Do not commit your real `.env` file. Provide environment variables via your deployment system.
