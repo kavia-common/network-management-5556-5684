@@ -51,6 +51,9 @@ app.url_map.strict_slashes = False
 #       http://127.0.0.1:3000,
 #       http://vscode-internal-34539-beta.beta01.cloud.kavia.ai:3000,
 #       http://vscode-internal-34539-beta.beta01.cloud.kavia.ai:3001
+#   If FRONTEND_ORIGIN_ALLOWLIST is provided in the environment or .env, those values
+#   will override the defaults. To include an additional origin, append it to the
+#   comma-separated list (e.g., add http://vscode-internal-34539-beta.beta01.cloud.kavia.ai:3000).
 # - Note: credentials are disabled (supports_credentials=False) unless the app adopts cookies.
 #
 # Allowed methods/headers include OPTIONS to ensure preflight succeeds.

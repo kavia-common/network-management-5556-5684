@@ -71,7 +71,12 @@ MONGODB_COLLECTION=device
 MONGODB_CONNECT_TIMEOUT_MS=5000
 
 # CORS allowlist (add your preview host here if needed)
-# FRONTEND_ORIGIN_ALLOWLIST=http://localhost:3000,http://127.0.0.1:3000,https://my-preview.example.com:3000
+# Keep precise origins (scheme + host + port). Do not use wildcards.
+# Local dev examples:
+# FRONTEND_ORIGIN_ALLOWLIST=http://localhost:3000,http://127.0.0.1:3000
+# vscode-internal preview (explicitly allowed for this workspace):
+# If you already have FRONTEND_ORIGIN_ALLOWLIST set, append the following origin to the comma-separated list.
+FRONTEND_ORIGIN_ALLOWLIST=http://vscode-internal-34539-beta.beta01.cloud.kavia.ai:3000
 
 # Or construct from parts (if MONGODB_URI is not provided)
 # MONGODB_HOST=localhost
@@ -80,6 +85,10 @@ MONGODB_CONNECT_TIMEOUT_MS=5000
 # MONGODB_PASSWORD=
 # MONGODB_OPTIONS=
 ```
+
+Important:
+- If FRONTEND_ORIGIN_ALLOWLIST is already set in your environment, append `http://vscode-internal-34539-beta.beta01.cloud.kavia.ai:3000` to the comma-separated list instead of replacing existing entries.
+- After changing environment variables, restart the backend service (stop and start your preview) so the new CORS settings take effect.
 
 Note:
 - Do not commit your real `.env` file. Provide environment variables via your deployment system.
