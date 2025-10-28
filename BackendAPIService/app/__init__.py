@@ -35,13 +35,14 @@ app = Flask(__name__)
 app.url_map.strict_slashes = False
 
 # Configure CORS for React frontend on http://localhost:3000 covering all routes.
-# Allow standard methods and common headers; enable credentials support for future use.
+# Allow standard methods and common headers; enable credentials support.
+# X-Requested-With inclusion improves compatibility with common AJAX libraries.
 CORS(
     app,
     resources={r"/*": {"origins": ["http://localhost:3000"]}},
     supports_credentials=True,
     methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allow_headers=["Content-Type", "Authorization"],
+    allow_headers=["Content-Type", "Authorization", "X-Requested-With"],
 )
 
 # Configure API documentation
