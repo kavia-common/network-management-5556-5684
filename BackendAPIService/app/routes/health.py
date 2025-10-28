@@ -22,6 +22,19 @@ class HealthCheck(MethodView):
         return {"message": "Healthy"}
 
 
+@blp.route("/health")
+class HealthAlias(MethodView):
+    """Alias health endpoint for explicit GET /health."""
+    def get(self):
+        """
+        GET /health
+        Summary: Explicit health endpoint that returns 200 OK.
+        Returns:
+          200: {"message": "Healthy"}
+        """
+        return {"message": "Healthy"}
+
+
 @blp.route("/health/db")
 class DBHealth(MethodView):
     """

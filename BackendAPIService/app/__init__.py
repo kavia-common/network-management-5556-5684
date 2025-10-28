@@ -55,18 +55,23 @@ app.url_map.strict_slashes = False
 frontend_origin = os.environ.get("FRONTEND_ORIGIN")
 additional_origins = os.environ.get("ADDITIONAL_CORS_ORIGINS", "")
 
+# Explicitly include provided task host origins for convenience in this environment
+task_specific_frontend = "http://vscode-internal-34539-beta.beta01.cloud.kavia.ai:3000"
+
 default_dev_origins = [
     "http://localhost:3000",
     # Allow common kavia preview hosts on port 3000 for dev
     "https://vscode-internal-26250-beta.beta01.cloud.kavia.ai:3000",
     "https://vscode-internal-34539-beta.beta01.cloud.kavia.ai:3000",
+    task_specific_frontend,
 ]
 
 allowed_origins = []
 if frontend_origin:
+    # Use exactly the provided origin; scheme must match (avoid mixed content)
     allowed_origins.append(frontend_origin.strip())
 else:
-    # Use development-friendly defaults
+    # Use development-friendly defaults including the task host
     allowed_origins.extend(default_dev_origins)
 
 if additional_origins:
@@ -76,8 +81,7 @@ if additional_origins:
 seen = set()
 allowed_origins = [o for o in allowed_origins if not (o in seen or seen.add(o))]
 
-# In development, if FRONTEND_ORIGIN is not explicitly set, default to permissive "*"
-# This avoids CORS failures on ephemeral preview hostnames.
+# If FRONTEND_ORIGIN is explicitly set, restrict to that/those origins; otherwise allow "*"
 cors_origins = allowed_origins if frontend_origin else "*"
 
 CORS(
