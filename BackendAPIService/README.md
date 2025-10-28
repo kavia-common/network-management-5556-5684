@@ -111,7 +111,8 @@ device = devices.find_one({"ip_address": "192.168.1.10"})
   - Otherwise: returns full array `[]`
 - POST `/devices` — Create a device
   - Body: `{ name, ip_address (IPv4), type (router|switch|server), location, status (online|offline|unknown) }`
-  - On duplicate `ip_address`: `400` with `{ "error": { "field": "ip_address", "message": "already exists" } }`
+  - On validation error: `400` with `{"status":"Bad Request","message":"Validation failed","errors":{...}}`
+  - On duplicate `ip_address`: `409` with `{ "error": { "field": "ip_address", "message": "already exists" } }`
 - GET `/devices/{id}` — Retrieve a device by id
 - PUT `/devices/{id}` — Update fields of a device (all optional)
   - Same validation rules as create; uniqueness enforced on `ip_address`

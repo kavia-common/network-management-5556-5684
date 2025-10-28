@@ -84,6 +84,7 @@ class DevicesList(MethodView):
     def options(self):
         # Preflight response for CORS
         return Response(status=204)
+
     @blp.response(200, DeviceListOutSchema, description="List devices with pagination envelope")
     def get(self):
         """
@@ -169,7 +170,13 @@ class DevicesList(MethodView):
             try:
                 res = coll.insert_one(doc)
             except DuplicateKeyError:
-                abort(400, error={"field": "ip_address", "message": "already exists"})
+                # Map unique constraint violations to HTTP 409 Conflict
+                return Response(
+                    response=json.dumps({"error": {"field": "ip_address", "message": "already exists"}}),
+                    status=409,
+                    mimetype="application/json",
+                    content_type="application/json; charset=utf-8",
+                )
             created = coll.find_one({"_id": res.inserted_id})
             # Serialize via schema for consistency, then return explicit JSON Response
             from app.schemas import serialize_device
@@ -294,6 +301,7 @@ class DeviceItem(MethodView):
 class DevicePing(MethodView):
     def options(self, id: str):
         return Response(status=204)
+
     @blp.response(200, DeviceOutSchema, description="Ping a device and update its status")
     def post(self, id: str):
         """

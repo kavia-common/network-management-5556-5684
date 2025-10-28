@@ -1,8 +1,12 @@
-from flask import Flask
+import os
+
+from flask import Flask, jsonify, request
 from flask_cors import CORS
 from flask_smorest import Api
+from marshmallow import ValidationError  # type: ignore
+from werkzeug.exceptions import HTTPException, UnprocessableEntity
+
 from .routes import health_blp, devices_blp
-import os
 
 # Load environment variables from .env if present.
 # We explicitly attempt to load BackendAPIService/.env to be robust to different CWDs.
@@ -29,7 +33,7 @@ except Exception as _e:
     print(f"[Startup][WARN] Could not load .env automatically: {_e}")
 
 # Import db to initialize Mongo connection on startup if env is configured
-from . import db as _db  # noqa: F401
+from . import db as _db  # noqa: E402,F401
 
 app = Flask(__name__)
 app.url_map.strict_slashes = False
@@ -99,10 +103,38 @@ api = Api(app)
 api.register_blueprint(health_blp)
 api.register_blueprint(devices_blp)
 
-# Global JSON error handling to ensure clients always receive JSON with proper content type
-from werkzeug.exceptions import HTTPException
-from flask import jsonify, request
 
+# Normalize validation errors from flask-smorest/webargs (default 422) to HTTP 400
+@app.errorhandler(UnprocessableEntity)
+def handle_unprocessable_entity(e: UnprocessableEntity):
+    # Convert 422 to 400 with a compact error structure
+    data = getattr(e, "data", None)
+    messages = None
+    if isinstance(data, dict):
+        messages = data.get("messages")
+    response = {
+        "status": "Bad Request",
+        "code": 400,
+        "message": "Validation failed",
+        "errors": messages if messages else {},
+        "path": request.path,
+    }
+    return jsonify(response), 400
+
+
+@app.errorhandler(ValidationError)
+def handle_validation_error(e: ValidationError):
+    response = {
+        "status": "Bad Request",
+        "code": 400,
+        "message": "Validation failed",
+        "errors": e.messages if hasattr(e, "messages") else {},
+        "path": request.path,
+    }
+    return jsonify(response), 400
+
+
+# Global JSON error handling to ensure clients always receive JSON with proper content type
 @app.errorhandler(HTTPException)
 def handle_http_exception(e: HTTPException):
     # Build a consistent JSON body
@@ -113,6 +145,7 @@ def handle_http_exception(e: HTTPException):
         "path": request.path,
     }
     return jsonify(response), e.code
+
 
 @app.errorhandler(Exception)
 def handle_unexpected_exception(e: Exception):
@@ -126,6 +159,7 @@ def handle_unexpected_exception(e: Exception):
         "path": request.path,
     }
     return jsonify(response), 500
+
 
 # Try DB initialization on startup to surface issues early, but do not abort the app.
 # Health endpoint will still report detailed DB errors.
