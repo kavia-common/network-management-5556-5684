@@ -39,9 +39,19 @@ app.url_map.strict_slashes = False
 # X-Requested-With inclusion improves compatibility with common AJAX libraries.
 CORS(
     app,
-    resources={r"/*": {"origins": ["http://localhost:3000"]}},
+    # Allow both local dev and cloud preview origins
+    resources={
+        r"/*": {
+            "origins": [
+                "http://localhost:3000",
+                "https://vscode-internal-35190-beta.beta01.cloud.kavia.ai:3000",
+            ]
+        }
+    },
+    # Keep credentials support and standard methods
     supports_credentials=True,
     methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    # Ensure common headers are allowed; covers content-type preflight
     allow_headers=["Content-Type", "Authorization", "X-Requested-With"],
 )
 
