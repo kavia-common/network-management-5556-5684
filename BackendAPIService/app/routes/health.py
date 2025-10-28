@@ -14,24 +14,7 @@ blp = Blueprint("Health", "health", url_prefix="/", description="Health check ro
 class HealthCheck(MethodView):
     """Simple health check endpoint."""
     def get(self):
-        """
-        Return service health.
-        Returns:
-          200: {"message": "Healthy"}
-        """
-        return {"message": "Healthy"}
-
-
-@blp.route("/health")
-class HealthAlias(MethodView):
-    """Alias health endpoint for explicit GET /health."""
-    def get(self):
-        """
-        GET /health
-        Summary: Explicit health endpoint that returns 200 OK.
-        Returns:
-          200: {"message": "Healthy"}
-        """
+        """Return service health."""
         return {"message": "Healthy"}
 
 
@@ -63,23 +46,6 @@ class DBHealth(MethodView):
             # Optional logging without leaking secrets
             logging.getLogger(__name__).error("DB healthcheck failed: %s", err or str(e))
             return jsonify({"status": "error", "message": err or "Database ping failed"}), 500
-
-
-@blp.route("/health/db-name")
-class DBName(MethodView):
-    """Expose active database name for quick verification."""
-    def get(self):
-        """
-        GET /health/db-name
-        Summary: Return the active MongoDB database name.
-        Returns:
-          200: {"dbName": "<active db name>"}
-        """
-        try:
-            db = get_db()
-            return jsonify({"dbName": db.name}), 200
-        except Exception as e:
-            return jsonify({"error": "Failed to determine DB name", "message": str(e)}), 500
 
 
 @blp.route("/health/devices-summary")

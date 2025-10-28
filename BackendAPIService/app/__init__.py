@@ -55,23 +55,16 @@ app.url_map.strict_slashes = False
 frontend_origin = os.environ.get("FRONTEND_ORIGIN")
 additional_origins = os.environ.get("ADDITIONAL_CORS_ORIGINS", "")
 
-# Explicitly include provided task host origins for convenience in this environment
-task_specific_frontend = "http://vscode-internal-34539-beta.beta01.cloud.kavia.ai:3000"
-
 default_dev_origins = [
     "http://localhost:3000",
-    # Allow common kavia preview hosts on port 3000 for dev
-    "https://vscode-internal-26250-beta.beta01.cloud.kavia.ai:3000",
     "https://vscode-internal-34539-beta.beta01.cloud.kavia.ai:3000",
-    task_specific_frontend,
 ]
 
 allowed_origins = []
 if frontend_origin:
-    # Use exactly the provided origin; scheme must match (avoid mixed content)
     allowed_origins.append(frontend_origin.strip())
 else:
-    # Use development-friendly defaults including the task host
+    # Use development-friendly defaults
     allowed_origins.extend(default_dev_origins)
 
 if additional_origins:
@@ -81,7 +74,8 @@ if additional_origins:
 seen = set()
 allowed_origins = [o for o in allowed_origins if not (o in seen or seen.add(o))]
 
-# If FRONTEND_ORIGIN is explicitly set, restrict to that/those origins; otherwise allow "*"
+# In development, if FRONTEND_ORIGIN is not explicitly set, default to permissive "*"
+# This avoids CORS failures on ephemeral preview hostnames.
 cors_origins = allowed_origins if frontend_origin else "*"
 
 CORS(
@@ -92,11 +86,6 @@ CORS(
     allow_headers=["Content-Type", "Authorization", "X-Requested-With"],
     expose_headers=["Content-Type", "Content-Length", "X-Request-Id"],
 )
-# Minimal startup diagnostics for CORS
-try:
-    print(f"[Startup][INFO] CORS allowed origins: {cors_origins}")
-except Exception:
-    pass
 
 # Configure API documentation
 app.config["API_TITLE"] = "Network Devices API"
@@ -176,13 +165,6 @@ def handle_unexpected_exception(e: Exception):
 # Health endpoint will still report detailed DB errors.
 try:
     _db.get_client()  # initializes client and ensures indexes; will ping internally
-    # After client init, log effective DB name and devices collection
-    try:
-        effective_db = _db.get_db()
-        from .db import DEVICES_COLLECTION as _DEV_COLL  # local import to avoid circulars
-        print(f"[Startup][INFO] MongoDB initialized: db='{effective_db.name}', collection='{_DEV_COLL}'")
-    except Exception as _e_db:
-        print(f"[Startup][WARN] Could not determine DB/collection after init: {_e_db}")
 except Exception as e:
     # Log warning without crashing so the API (including /health) can start.
     print(f"[Startup][WARN] MongoDB initialization failed (continuing to start API): {e}")
