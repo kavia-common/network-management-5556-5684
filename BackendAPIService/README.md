@@ -30,7 +30,7 @@ Preferred single-URI configuration:
 Common settings:
 - MONGODB_DB_NAME (optional, default: `network`)
   - Overrides the database name even if the MONGODB_URI contains a DB path.
-- MONGODB_COLLECTION (optional, default: `network`) — collection used by the app; indexes are created here
+- MONGODB_COLLECTION (optional, default: `devices`) — collection used by the app; indexes are created here
 - MONGODB_TLS (optional, `true` enables TLS)
 - MONGODB_CONNECT_TIMEOUT_MS (optional, default: `5000`)
 
@@ -71,7 +71,7 @@ Example `.env` content (see `.env.example` for a ready-to-copy template):
 MONGODB_URI=mongodb+srv://<user>:<pass>@<cluster-host>/network?retryWrites=true&w=majority&appName=myapp
 # Optional: override DB name even if it is present in the URI
 MONGODB_DB_NAME=network
-MONGODB_COLLECTION=device
+MONGODB_COLLECTION=devices
 MONGODB_CONNECT_TIMEOUT_MS=5000
 
 # CORS allowlist (add your preview host here if needed)
@@ -107,16 +107,16 @@ Note:
 
 ## Database and Indexes
 
-On startup, the app initializes a singleton `MongoClient`, verifies connectivity using `admin.command('ping')`, and ensures indexes on the `network` collection (or collection specified via `MONGODB_COLLECTION`):
+On startup, the app initializes a singleton `MongoClient`, verifies connectivity using `admin.command('ping')`, and ensures indexes on the `devices` collection (or collection specified via `MONGODB_COLLECTION`):
 
 Migration note:
 - The default database name has changed from `network_devices` to `network`.
 - Existing data remains in `network_devices`. If you switch to the new default, your app will start with an empty dataset unless you migrate.
 - To continue using your existing data without migration, set `MONGODB_DB_NAME=network_devices` or include `/network_devices` in `MONGODB_URI`.
 
-- Unique index on `ip_address` (name: `uniq_ip`) on the `network` collection
-- Index on `type` (name: `idx_type`) on the `network` collection
-- Index on `status` (name: `idx_status`) on the `network` collection
+- Unique index on `ip_address` (name: `uniq_ip`) on the `devices` collection
+- Index on `type` (name: `idx_type`) on the `devices` collection
+- Index on `status` (name: `idx_status`) on the `devices` collection
 
 ## Using the DB helpers in code
 
@@ -130,9 +130,9 @@ The `app/db.py` module exposes the following functions:
 Example usage within a route:
 
 ```python
-from app.db import get_collection, DEVICES_COLLECTION
+from app.db import get_devices_collection
 
-devices = get_collection(DEVICES_COLLECTION)  # uses env MONGODB_COLLECTION (default: "device")
+devices = get_devices_collection()  # uses env MONGODB_COLLECTION (default: "devices")
 device = devices.find_one({"ip_address": "192.168.1.10"})
 ```
 

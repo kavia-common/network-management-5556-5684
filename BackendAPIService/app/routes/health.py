@@ -5,7 +5,7 @@ from flask import jsonify
 import logging
 
 # Import helpers for the devices summary endpoint
-from app.db import get_db, DEVICES_COLLECTION, get_network_collection
+from app.db import get_db, DEVICES_COLLECTION, get_devices_collection
 
 blp = Blueprint("Health", "health", url_prefix="/", description="Health check route")
 
@@ -72,7 +72,7 @@ class DevicesSummary(MethodView):
         """
         try:
             db = get_db()
-            coll = get_network_collection()
+            coll = get_devices_collection()
             count = coll.count_documents({})
             # Fetch only _id to avoid any sensitive fields; limit to 3
             cursor = coll.find({}, {"_id": 1}).sort("_id", -1).limit(3)
