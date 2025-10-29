@@ -45,16 +45,18 @@ app.url_map.strict_slashes = False
 # Defaults cover localhost and the common vscode-internal preview host ports (3000/3001).
 #
 # Environment variables:
-# - FRONTEND_ORIGIN_ALLOWLIST (comma-separated)
+# - FRONTEND_ORIGIN_ALLOWLIST or CORS_ALLOWED_ORIGINS (comma-separated)
 #     Defaults to:
 #       http://localhost:3000,
 #       http://127.0.0.1:3000,
 #       http://vscode-internal-34539-beta.beta01.cloud.kavia.ai:3000,
-#       http://vscode-internal-34539-beta.beta01.cloud.kavia.ai:3001
-#   If FRONTEND_ORIGIN_ALLOWLIST is provided in the environment or .env, those values
-#   will override the defaults. To include an additional origin, append it to the
-#   comma-separated list (e.g., add http://vscode-internal-34539-beta.beta01.cloud.kavia.ai:3000).
-# - Note: credentials are disabled (supports_credentials=False) unless the app adopts cookies.
+#       http://vscode-internal-34539-beta.beta01.cloud.kavia.ai:3001,
+#       https://vscode-internal-26250-beta.beta01.cloud.kavia.ai:3000,
+#       https://vscode-internal-28439-beta.beta01.cloud.kavia.ai:3001
+#   If FRONTEND_ORIGIN_ALLOWLIST/CORS_ALLOWED_ORIGINS is provided in the environment or .env,
+#   those values will override the defaults. To include an additional origin, append it to the
+#   comma-separated list (e.g., add https://vscode-internal-28439-beta.beta01.cloud.kavia.ai:3001).
+# - CORS_SUPPORTS_CREDENTIALS (optional bool): "true"/"false" to enable cookie-based auth if needed.
 #
 # Allowed methods/headers include OPTIONS to ensure preflight succeeds.
 default_allowlist = [
@@ -62,27 +64,41 @@ default_allowlist = [
     "http://127.0.0.1:3000",
     "http://vscode-internal-34539-beta.beta01.cloud.kavia.ai:3000",
     "http://vscode-internal-34539-beta.beta01.cloud.kavia.ai:3001",
-    # Add HTTPS preview origin to avoid mixed-content and strict-origin issues
+    # Add HTTPS preview origins to avoid mixed-content and strict-origin issues
     "https://vscode-internal-26250-beta.beta01.cloud.kavia.ai:3000",
+    "https://vscode-internal-28439-beta.beta01.cloud.kavia.ai:3001",
 ]
-env_allowlist = os.environ.get("FRONTEND_ORIGIN_ALLOWLIST", "")
-if env_allowlist.strip():
-    origins = [o.strip() for o in env_allowlist.split(",") if o.strip()]
-    # Ensure the required HTTPS origin is present even when env is set
-    required_https = "https://vscode-internal-26250-beta.beta01.cloud.kavia.ai:3000"
-    if required_https not in origins:
-        origins.append(required_https)
+# Support both legacy and new env var names
+env_allowlist_raw = os.environ.get("FRONTEND_ORIGIN_ALLOWLIST") or os.environ.get("CORS_ALLOWED_ORIGINS", "")
+if env_allowlist_raw.strip():
+    origins = [o.strip() for o in env_allowlist_raw.split(",") if o.strip()]
 else:
     origins = list(default_allowlist)
 
-# De-duplicate while preserving order
+# De-duplicate while preserving order and ensure required preview hosts remain allowed
+_required = {
+    "https://vscode-internal-26250-beta.beta01.cloud.kavia.ai:3000",
+    "https://vscode-internal-28439-beta.beta01.cloud.kavia.ai:3001",
+}
 _seen = set()
 origins = [o for o in origins if not (o in _seen or _seen.add(o))]
+for req in _required:
+    if req not in origins:
+        origins.append(req)
+
+
+def _env_bool(v: str | None, default: bool = False) -> bool:
+    if v is None:
+        return default
+    return v.strip().lower() in {"1", "true", "yes", "on"}
+
+
+supports_credentials = _env_bool(os.environ.get("CORS_SUPPORTS_CREDENTIALS"), default=False)
 
 CORS(
     app,
     resources={r"/*": {"origins": origins}},
-    supports_credentials=False,
+    supports_credentials=supports_credentials,
     methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["Content-Type", "Authorization", "X-Requested-With"],
     expose_headers=["Content-Type", "Content-Length", "X-Request-Id"],

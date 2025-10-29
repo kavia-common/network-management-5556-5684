@@ -48,7 +48,7 @@ Fallback individual settings (used only if MONGODB_URI is not set and at least o
 
 The backend uses `flask-cors` and enables CORS for specific frontend origins using an allowlist.
 
-- FRONTEND_ORIGIN_ALLOWLIST (optional, comma-separated)
+- FRONTEND_ORIGIN_ALLOWLIST or CORS_ALLOWED_ORIGINS (optional, comma-separated)
   - A comma-separated list of allowed origins (scheme + host + port), e.g.:
     `http://localhost:3000,http://127.0.0.1:3000,https://my-preview.example.com:3000`
   - If not set, development-safe defaults are used:
@@ -57,14 +57,15 @@ The backend uses `flask-cors` and enables CORS for specific frontend origins usi
     - http://vscode-internal-34539-beta.beta01.cloud.kavia.ai:3000
     - http://vscode-internal-34539-beta.beta01.cloud.kavia.ai:3001
     - https://vscode-internal-26250-beta.beta01.cloud.kavia.ai:3000
+    - https://vscode-internal-28439-beta.beta01.cloud.kavia.ai:3001
 - Behavior:
   - Allowed methods: GET, POST, PUT, PATCH, DELETE, OPTIONS
   - Allowed headers: Content-Type, Authorization, X-Requested-With
   - Exposed headers: Content-Type, Content-Length, X-Request-Id
-  - Credentials: disabled by default (supports_credentials: false)
+  - Credentials: configurable via `CORS_SUPPORTS_CREDENTIALS` (default: false)
 - Notes:
   - This configuration ensures preflight (OPTIONS) requests succeed.
-  - If you need cookie-based auth in the future, set supports_credentials to true and ensure your frontend uses proper cookie settings.
+  - If you need cookie-based auth in the future, set `CORS_SUPPORTS_CREDENTIALS=true` and ensure your frontend uses proper cookie settings.
   - CORS is initialized in `app/__init__.py`.
 
 Example `.env` content (see `.env.example` for a ready-to-copy template):
@@ -80,11 +81,13 @@ MONGODB_CONNECT_TIMEOUT_MS=5000
 # CORS allowlist (add your preview host here if needed)
 # Keep precise origins (scheme + host + port). Do not use wildcards.
 # Local dev examples:
-# FRONTEND_ORIGIN_ALLOWLIST=http://localhost:3000,http://127.0.0.1:3000
+# CORS_ALLOWED_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
 # vscode-internal preview (explicitly allowed for this workspace):
-# If you already have FRONTEND_ORIGIN_ALLOWLIST set, append the following origins to the comma-separated list.
+# If you already have FRONTEND_ORIGIN_ALLOWLIST or CORS_ALLOWED_ORIGINS set, append the following origins to the comma-separated list.
 # Include HTTPS for the running frontend preview to avoid CORS/mixed content errors.
-FRONTEND_ORIGIN_ALLOWLIST=http://vscode-internal-34539-beta.beta01.cloud.kavia.ai:3000,https://vscode-internal-26250-beta.beta01.cloud.kavia.ai:3000
+CORS_ALLOWED_ORIGINS=http://vscode-internal-34539-beta.beta01.cloud.kavia.ai:3000,https://vscode-internal-26250-beta.beta01.cloud.kavia.ai:3000,https://vscode-internal-28439-beta.beta01.cloud.kavia.ai:3001
+# Enable if using cookie-based auth (off by default)
+# CORS_SUPPORTS_CREDENTIALS=true
 
 # Or construct from parts (if MONGODB_URI is not provided)
 # MONGODB_HOST=localhost
