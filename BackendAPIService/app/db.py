@@ -26,9 +26,9 @@ _client_lock = threading.Lock()
 _client: Optional[MongoClient] = None
 _db: Optional[Database] = None
 
-DEFAULT_DB_NAME = "network"  # Default DB name; can be overridden via MONGODB_DB_NAME
-# Devices collection name will be read from env var MONGODB_COLLECTION with default 'devices'
-DEVICES_COLLECTION = os.environ.get("MONGODB_COLLECTION", "devices")
+DEFAULT_DB_NAME = "network"  # Default DB per updated requirement; can be overridden via MONGODB_DB_NAME
+# Devices collection name will be read from env var MONGODB_COLLECTION with default 'device'
+DEVICES_COLLECTION = os.environ.get("MONGODB_COLLECTION", "device")
 
 
 def _env_bool(value: Optional[str]) -> bool:
@@ -165,11 +165,11 @@ def _build_mongo_client() -> Tuple[MongoClient, str]:
 
 def _ensure_indexes(db: Database) -> None:
     """
-    Ensure required indexes exist for the devices collection configured via MONGODB_COLLECTION:
+    Ensure required indexes exist for the device collection configured via MONGODB_COLLECTION:
       - Unique index on ip_address (name: 'uniq_ip')
       - Non-unique indexes on 'type' and 'status'
     """
-    devices = db[DEVICES_COLLECTION]  # DEVICES_COLLECTION defaults to 'devices'
+    devices = db[DEVICES_COLLECTION]  # DEVICES_COLLECTION defaults to 'device'
 
     # Unique index on ip_address
     devices.create_index(
@@ -236,12 +236,6 @@ def get_db() -> Database:
 def get_collection(name: str) -> Collection:
     """Return a collection from the default database by name."""
     return get_db()[name]
-
-
-# PUBLIC_INTERFACE
-def get_devices_collection() -> Collection:
-    """Return the configured 'devices' collection (or value from MONGODB_COLLECTION if overridden)."""
-    return get_collection(DEVICES_COLLECTION)
 
 
 # PUBLIC_INTERFACE
