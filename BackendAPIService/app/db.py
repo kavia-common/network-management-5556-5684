@@ -27,8 +27,9 @@ _client: Optional[MongoClient] = None
 _db: Optional[Database] = None
 
 DEFAULT_DB_NAME = "network"  # Default DB per updated requirement; can be overridden via MONGODB_DB_NAME
-# Devices collection name will be read from env var MONGODB_COLLECTION with default 'device'
-DEVICES_COLLECTION = os.environ.get("MONGODB_COLLECTION", "device")
+# Devices collection name will be read from env var MONGODB_COLLECTION with default 'network'
+# Per requirement: use a collection named 'network'
+DEVICES_COLLECTION = os.environ.get("MONGODB_COLLECTION", "network")
 
 
 def _env_bool(value: Optional[str]) -> bool:
@@ -236,6 +237,12 @@ def get_db() -> Database:
 def get_collection(name: str) -> Collection:
     """Return a collection from the default database by name."""
     return get_db()[name]
+
+
+# PUBLIC_INTERFACE
+def get_network_collection() -> Collection:
+    """Return the configured 'network' collection (or value from MONGODB_COLLECTION if overridden)."""
+    return get_collection(DEVICES_COLLECTION)
 
 
 # PUBLIC_INTERFACE

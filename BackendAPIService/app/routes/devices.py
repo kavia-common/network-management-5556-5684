@@ -10,7 +10,7 @@ from flask.views import MethodView
 from flask_smorest import Blueprint, abort
 from pymongo.errors import DuplicateKeyError
 
-from app.db import get_collection, DEVICES_COLLECTION
+from app.db import get_collection, DEVICES_COLLECTION, get_network_collection
 from app.schemas import (
     DeviceCreateSchema,
     DeviceUpdateSchema,
@@ -98,7 +98,7 @@ class DevicesList(MethodView):
           Logs computed page/limit, total count, item count, and content type.
         """
         try:
-            coll = get_collection(DEVICES_COLLECTION)
+            coll = get_network_collection()
 
             # Resolve pagination with safe defaults
             page_param = request.args.get("page")

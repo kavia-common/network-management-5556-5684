@@ -30,7 +30,7 @@ Preferred single-URI configuration:
 Common settings:
 - MONGODB_DB_NAME (optional, default: `network`)
   - Overrides the database name even if the MONGODB_URI contains a DB path.
-- MONGODB_COLLECTION (optional, default: `device`) — collection used by the app; indexes are created here
+- MONGODB_COLLECTION (optional, default: `network`) — collection used by the app; indexes are created here
 - MONGODB_TLS (optional, `true` enables TLS)
 - MONGODB_CONNECT_TIMEOUT_MS (optional, default: `5000`)
 
@@ -107,16 +107,16 @@ Note:
 
 ## Database and Indexes
 
-On startup, the app initializes a singleton `MongoClient`, verifies connectivity using `admin.command('ping')`, and ensures indexes on the `device` collection (or collection specified via `MONGODB_COLLECTION`):
+On startup, the app initializes a singleton `MongoClient`, verifies connectivity using `admin.command('ping')`, and ensures indexes on the `network` collection (or collection specified via `MONGODB_COLLECTION`):
 
 Migration note:
 - The default database name has changed from `network_devices` to `network`.
 - Existing data remains in `network_devices`. If you switch to the new default, your app will start with an empty dataset unless you migrate.
 - To continue using your existing data without migration, set `MONGODB_DB_NAME=network_devices` or include `/network_devices` in `MONGODB_URI`.
 
-- Unique index on `ip_address` (name: `uniq_ip`)
-- Index on `type` (name: `idx_type`)
-- Index on `status` (name: `idx_status`)
+- Unique index on `ip_address` (name: `uniq_ip`) on the `network` collection
+- Index on `type` (name: `idx_type`) on the `network` collection
+- Index on `status` (name: `idx_status`) on the `network` collection
 
 ## Using the DB helpers in code
 
