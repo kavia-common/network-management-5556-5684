@@ -4,6 +4,9 @@ Flask-based Backend API for Network Device Management.
 
 This service integrates with MongoDB via `pymongo` and exposes REST APIs (flask-smorest). This document covers environment variables, MongoDB configuration (Atlas-ready), CORS configuration, and available endpoints.
 
+Preview note:
+- The API can start even if MongoDB is not reachable. In that case, `/health/db` will report an error until you configure `MONGODB_URI` (or host/port parts) and ensure the database is accessible.
+
 ## Requirements
 
 - Python 3.10+
