@@ -57,6 +57,7 @@ The backend uses `flask-cors` and enables CORS for specific frontend origins usi
     - http://vscode-internal-34539-beta.beta01.cloud.kavia.ai:3000
     - http://vscode-internal-34539-beta.beta01.cloud.kavia.ai:3001
     - https://vscode-internal-26250-beta.beta01.cloud.kavia.ai:3000
+    - https://vscode-internal-28439-beta.beta01.cloud.kavia.ai:3000
     - https://vscode-internal-28439-beta.beta01.cloud.kavia.ai:3001
 - Behavior:
   - Allowed methods: GET, POST, PUT, PATCH, DELETE, OPTIONS
@@ -85,7 +86,7 @@ MONGODB_CONNECT_TIMEOUT_MS=5000
 # vscode-internal preview (explicitly allowed for this workspace):
 # If you already have FRONTEND_ORIGIN_ALLOWLIST or CORS_ALLOWED_ORIGINS set, append the following origins to the comma-separated list.
 # Include HTTPS for the running frontend preview to avoid CORS/mixed content errors.
-CORS_ALLOWED_ORIGINS=http://vscode-internal-34539-beta.beta01.cloud.kavia.ai:3000,https://vscode-internal-26250-beta.beta01.cloud.kavia.ai:3000,https://vscode-internal-28439-beta.beta01.cloud.kavia.ai:3001
+CORS_ALLOWED_ORIGINS=http://vscode-internal-34539-beta.beta01.cloud.kavia.ai:3000,https://vscode-internal-26250-beta.beta01.cloud.kavia.ai:3000,https://vscode-internal-28439-beta.beta01.cloud.kavia.ai:3000,https://vscode-internal-28439-beta.beta01.cloud.kavia.ai:3001
 # Enable if using cookie-based auth (off by default)
 # CORS_SUPPORTS_CREDENTIALS=true
 
@@ -191,6 +192,58 @@ Preview links:
 - OpenAPI JSON: http://localhost:3001/openapi.json
 
 The generated OpenAPI JSON file is also written to `interfaces/openapi.json`. To regenerate from the running app context:
+
+## Troubleshooting CORS and Fetch Failures
+
+If OPTIONS preflight succeeds but actual GET/POST fails with a "Network error" in the frontend:
+
+- Ensure your frontend origin exactly matches an allowed origin (scheme + host + port).
+  - Defaults include:
+    - http://localhost:3000
+    - http://127.0.0.1:3000
+    - http://vscode-internal-34539-beta.beta01.cloud.kavia.ai:3000
+    - http://vscode-internal-34539-beta.beta01.cloud.kavia.ai:3001
+    - https://vscode-internal-26250-beta.beta01.cloud.kavia.ai:3000
+    - https://vscode-internal-28439-beta.beta01.cloud.kavia.ai:3000
+    - https://vscode-internal-28439-beta.beta01.cloud.kavia.ai:3001
+- CORS headers are applied to all responses (GET/POST and errors), not just OPTIONS, via flask-cors.
+- The app sets `app.url_map.strict_slashes = False`, so `/devices` will not redirect to `/devices/` (avoids 301/308 responses that may drop CORS headers).
+- The `/devices` handler and error paths always return `Content-Type: application/json; charset=utf-8`.
+- Credentials:
+  - `CORS_SUPPORTS_CREDENTIALS` is `false` by default. If your frontend uses `credentials: 'omit'`, keep it false.
+  - If you need cookie-based auth, set `CORS_SUPPORTS_CREDENTIALS=true` and update your frontend fetch to include credentials.
+
+Quick reproduction from your browser console:
+
+fetch('https://vscode-internal-28439-beta.beta01.cloud.kavia.ai:3001/health/db', { method: 'GET', credentials: 'omit' })
+  .then(r => { console.log('status', r.status); for (const [k,v] of r.headers) console.log(k, v); return r.json(); })
+  .then(j => console.log(j))
+  .catch(e => console.error('network error', e));
+
+fetch('https://vscode-internal-28439-beta.beta01.cloud.kavia.ai:3001/devices', { method: 'GET', credentials: 'omit' })
+  .then(r => { console.log('status', r.status); for (const [k,v] of r.headers) console.log(k, v); return r.json(); })
+  .then(j => console.log(j))
+  .catch(e => console.error('network error', e));
+
+If you still see errors:
+- Confirm there is no HTTP→HTTPS or path redirect.
+- Verify your environment variable `CORS_ALLOWED_ORIGINS` (or `FRONTEND_ORIGIN_ALLOWLIST`) includes the exact frontend origin.
+- Restart the backend after changing environment variables.
+
+### CORS diagnostics and reproduction
+- Ensure your frontend origin exactly matches one in the allowlist (scheme + host + port). Defaults now include:
+  - https://vscode-internal-28439-beta.beta01.cloud.kavia.ai:3000
+- The server sets `app.url_map.strict_slashes = False`, so it will not redirect `/devices` to `/devices/` (avoids 301/308 without CORS headers).
+- Test from the browser console:
+  fetch('https://vscode-internal-28439-beta.beta01.cloud.kavia.ai:3001/health/db', { method: 'GET', credentials: 'omit' })
+    .then(r => { console.log('status', r.status); for (const [k,v] of r.headers) console.log(k, v); return r.json(); })
+    .then(j => console.log(j))
+    .catch(e => console.error('network error', e));
+
+  fetch('https://vscode-internal-28439-beta.beta01.cloud.kavia.ai:3001/devices', { method: 'GET', credentials: 'omit' })
+    .then(r => { console.log('status', r.status); for (const [k,v] of r.headers) console.log(k, v); return r.json(); })
+    .then(j => console.log(j))
+    .catch(e => console.error('network error', e));
 ```
 python BackendAPIService/generate_openapi.py
 ```

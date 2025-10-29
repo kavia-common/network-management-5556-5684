@@ -66,6 +66,8 @@ default_allowlist = [
     "http://vscode-internal-34539-beta.beta01.cloud.kavia.ai:3001",
     # Add HTTPS preview origins to avoid mixed-content and strict-origin issues
     "https://vscode-internal-26250-beta.beta01.cloud.kavia.ai:3000",
+    # Explicitly allow the running frontend preview origin used in this workspace
+    "https://vscode-internal-28439-beta.beta01.cloud.kavia.ai:3000",
     "https://vscode-internal-28439-beta.beta01.cloud.kavia.ai:3001",
 ]
 # Support both legacy and new env var names
