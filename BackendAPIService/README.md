@@ -50,21 +50,15 @@ The backend uses `flask-cors` and enables CORS for specific frontend origins usi
 
 - FRONTEND_ORIGIN_ALLOWLIST or CORS_ALLOWED_ORIGINS (optional, comma-separated)
   - A comma-separated list of allowed origins (scheme + host + port), e.g.:
-    `http://localhost:3000,http://127.0.0.1:3000,https://my-preview.example.com:3000`
-  - If not set, development-safe defaults are used:
-    - http://localhost:3000
-    - http://127.0.0.1:3000
-    - http://vscode-internal-34539-beta.beta01.cloud.kavia.ai:3000
-    - http://vscode-internal-34539-beta.beta01.cloud.kavia.ai:3001
-    - https://vscode-internal-26250-beta.beta01.cloud.kavia.ai:3000
-    - https://vscode-internal-28439-beta.beta01.cloud.kavia.ai:3000
-    - https://vscode-internal-28439-beta.beta01.cloud.kavia.ai:3001
+    `http://localhost:3000,http://127.0.0.1:3000,https://my-frontend.example.com`
+  - If not set, development-safe defaults are used for local and preview environments (no wildcard in production).
 - Behavior:
   - Allowed methods: GET, POST, PUT, PATCH, DELETE, OPTIONS
   - Allowed headers: Content-Type, Authorization, X-Requested-With
   - Exposed headers: Content-Type, Content-Length, X-Request-Id
   - Credentials: configurable via `CORS_SUPPORTS_CREDENTIALS` (default: false)
 - Notes:
+  - Set/append your frontend origin(s) explicitly via `CORS_ALLOWED_ORIGINS`.
   - This configuration ensures preflight (OPTIONS) requests succeed.
   - If you need cookie-based auth in the future, set `CORS_SUPPORTS_CREDENTIALS=true` and ensure your frontend uses proper cookie settings.
   - CORS is initialized in `app/__init__.py`.
