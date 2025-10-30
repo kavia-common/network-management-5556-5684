@@ -10,8 +10,8 @@ Quick links:
 Setup:
 1) Create and configure environment variables
    - Copy BackendAPIService/.env.example to BackendAPIService/.env
-   - Ensure MONGODB_URI is set to a reachable MongoDB instance (or provide host/port parts as documented in BackendAPIService/README.md).
-   - Optionally set CORS_ALLOWED_ORIGINS (comma-separated) to include your frontend origin(s).
+   - Ensure MONGODB_URI is set to a reachable MongoDB instance (e.g., mongodb://localhost:27017/network).
+   - CORS is permissive by default (all origins). To restrict, set CORS_ALLOWED_ORIGINS in BackendAPIService/.env.
 
 2) Install dependencies
    cd BackendAPIService

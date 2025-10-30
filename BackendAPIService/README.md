@@ -20,6 +20,7 @@ pip install -r requirements.txt
 ```
 
 Note: The app loads variables from a `.env` file automatically using `python-dotenv` if present.
+A default `.env` is provided with a safe placeholder for `MONGODB_URI` (local connection).
 
 ## Environment Variables
 
