@@ -97,11 +97,13 @@ def _env_bool(v: str | None, default: bool = False) -> bool:
 
 supports_credentials = _env_bool(os.environ.get("CORS_SUPPORTS_CREDENTIALS"), default=False)
 
-# For this task, enable permissive CORS across all routes.
+# For this task, enable permissive CORS across all routes by default or via ALLOWED_ORIGINS="*".
 # Note: In production, prefer restricting allowed origins via env.
+allowed_origins_env = os.environ.get("ALLOWED_ORIGINS", "*").strip() or "*"
+cors_origins = "*" if allowed_origins_env == "*" else [o.strip() for o in allowed_origins_env.split(",") if o.strip()]
 CORS(
     app,
-    resources={r"/*": {"origins": "*"}},
+    resources={r"/*": {"origins": cors_origins}},
     supports_credentials=supports_credentials,
     methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["Content-Type", "Authorization", "X-Requested-With"],

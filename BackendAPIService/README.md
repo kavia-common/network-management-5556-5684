@@ -47,19 +47,20 @@ Fallback individual settings (used only if MONGODB_URI is not set and at least o
 
 ## CORS / Frontend integration
 
-The backend uses `flask-cors` and enables CORS for specific frontend origins using an allowlist.
+The backend uses `flask-cors` and is configured to allow all origins by default for this task.
 
-- FRONTEND_ORIGIN_ALLOWLIST or CORS_ALLOWED_ORIGINS (optional, comma-separated)
-  - A comma-separated list of allowed origins (scheme + host + port), e.g.:
+- ALLOWED_ORIGINS
+  - Set to "*" to allow all origins (default in .env/.env.example).
+  - For production, replace with a comma-separated list of exact origins (scheme + host + port), e.g.:
     `http://localhost:3000,http://127.0.0.1:3000,https://my-frontend.example.com`
-  - If not set, development-safe defaults are used for local and preview environments (no wildcard in production).
+- FRONTEND_ORIGIN_ALLOWLIST / CORS_ALLOWED_ORIGINS
+  - Legacy variables supported for allowlists. If ALLOWED_ORIGINS is set, it takes precedence.
 - Behavior:
   - Allowed methods: GET, POST, PUT, PATCH, DELETE, OPTIONS
   - Allowed headers: Content-Type, Authorization, X-Requested-With
   - Exposed headers: Content-Type, Content-Length, X-Request-Id
   - Credentials: configurable via `CORS_SUPPORTS_CREDENTIALS` (default: false)
 - Notes:
-  - Set/append your frontend origin(s) explicitly via `CORS_ALLOWED_ORIGINS`.
   - This configuration ensures preflight (OPTIONS) requests succeed.
   - If you need cookie-based auth in the future, set `CORS_SUPPORTS_CREDENTIALS=true` and ensure your frontend uses proper cookie settings.
   - CORS is initialized in `app/__init__.py`.
@@ -67,30 +68,22 @@ The backend uses `flask-cors` and enables CORS for specific frontend origins usi
 Example `.env` content (see `.env.example` for a ready-to-copy template):
 
 ```
-# Preferred (Atlas or standard)
-MONGODB_URI=mongodb+srv://<user>:<pass>@<cluster-host>/network?retryWrites=true&w=majority&appName=myapp
-# Optional: override DB name even if it is present in the URI
-MONGODB_DB_NAME=network
-MONGODB_COLLECTION=device
-MONGODB_CONNECT_TIMEOUT_MS=5000
+# Flask
+FLASK_ENV=development
+FLASK_DEBUG=1
+PORT=3001
 
-# CORS allowlist (add your preview host here if needed)
-# Keep precise origins (scheme + host + port). Do not use wildcards.
-# Local dev examples:
-# CORS_ALLOWED_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
-# vscode-internal preview (explicitly allowed for this workspace):
-# If you already have FRONTEND_ORIGIN_ALLOWLIST or CORS_ALLOWED_ORIGINS set, append the following origins to the comma-separated list.
-# Include HTTPS for the running frontend preview to avoid CORS/mixed content errors.
-CORS_ALLOWED_ORIGINS=http://vscode-internal-34539-beta.beta01.cloud.kavia.ai:3000,https://vscode-internal-26250-beta.beta01.cloud.kavia.ai:3000,https://vscode-internal-28439-beta.beta01.cloud.kavia.ai:3000,https://vscode-internal-28439-beta.beta01.cloud.kavia.ai:3001
-# Enable if using cookie-based auth (off by default)
-# CORS_SUPPORTS_CREDENTIALS=true
+# MongoDB (Atlas-ready)
+MONGODB_URI="mongodb+srv://db_user:vettel%402012@cluster0.htz84wq.mongodb.net/network?retryWrites=true&w=majority&appName=Cluster0"
+MONGODB_DB_NAME="network_devices"
 
-# Or construct from parts (if MONGODB_URI is not provided)
-# MONGODB_HOST=localhost
-# MONGODB_PORT=27017
-# MONGODB_USERNAME=
-# MONGODB_PASSWORD=
-# MONGODB_OPTIONS=
+# CORS: allow all origins for development/preview
+ALLOWED_ORIGINS="*"
+
+# Optional extras
+# MONGODB_COLLECTION=device
+# MONGODB_CONNECT_TIMEOUT_MS=5000
+# CORS_SUPPORTS_CREDENTIALS=false
 ```
 
 Migration note:

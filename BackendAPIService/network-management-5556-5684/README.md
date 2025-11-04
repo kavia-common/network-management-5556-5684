@@ -19,4 +19,4 @@ Setup:
 
 3) Run the app
    python run.py
-   The API will listen on http://localhost:3001 (Flask default development server).
+   The API will listen on http://localhost:${PORT:-3001} (reads PORT from environment; defaults to 3001).

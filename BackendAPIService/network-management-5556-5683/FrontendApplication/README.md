@@ -6,9 +6,10 @@ React-based UI for Network Device Management.
 
 Create a `.env` file (copy from `.env.example`) and set:
 
-- REACT_APP_API_BASE_URL: Base URL for the backend API (no trailing slash), e.g.:
-  - Local dev: `http://localhost:3001`
-  - Deployment: set to your backend URL
+- REACT_APP_API_BASE_URL: Base URL for the backend API (trailing slash optional; client normalizes).
+  - Provided (deployment): `https://kavia-alb-417f4a5e-113462135.backend.kavia.app/`
+  - Local dev example: `http://localhost:3001`
+  - Note: If you change this value, restart the dev server or rebuild the app.
 
 Important:
 - Any change to REACT_APP_* variables requires rebuilding the React app (stop dev server and restart, or re-run the build).

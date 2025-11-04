@@ -5,6 +5,7 @@ try:
 except Exception:  # fallback if factory not present yet
     create_app = None
 
+
 @pytest.mark.skipif(create_app is None, reason='create_app not available yet')
 def test_health_route_status_code():
     app = create_app()

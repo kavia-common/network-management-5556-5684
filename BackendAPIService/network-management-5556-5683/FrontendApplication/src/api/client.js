@@ -1,14 +1,15 @@
 //
-// PUBLIC_INTERFACE
-// createApiClient
-/** Create a simple API client configured with the base URL from REACT_APP_API_BASE_URL.
- * Usage:
- *   import { api } from './api/client';
- *   api.get('/devices').then(...)
- *
- * Notes:
- * - Ensure to set REACT_APP_API_BASE_URL in your environment (e.g., http://localhost:3001).
- * - Any change to REACT_APP_* variables requires rebuilding the React app.
+/**
+ PUBLIC_INTERFACE
+ createApiClient
+ Create a simple API client configured with the base URL from REACT_APP_API_BASE_URL.
+ Usage:
+   import { api } from './api/client';
+   api.get('/devices').then(...)
+
+ Notes:
+ - Ensure to set REACT_APP_API_BASE_URL in your environment (e.g., http://localhost:3001).
+ - Any change to REACT_APP_* variables requires rebuilding the React app.
  */
 export function createApiClient(baseUrl) {
   if (!baseUrl) {
@@ -20,7 +21,8 @@ export function createApiClient(baseUrl) {
       '[API] Missing REACT_APP_API_BASE_URL. Set it in .env and rebuild the app.'
     );
   }
-  const normalizedBase = (baseUrl || '').replace(/\/+$/, '');
+  // Normalize base: remove any trailing slashes to avoid double slashes when joining with paths
+  const normalizedBase = (baseUrl || '').replace(/\/*$/, '');
 
   async function request(path, options = {}) {
     const url =
