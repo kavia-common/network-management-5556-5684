@@ -41,52 +41,15 @@ app.url_map.strict_slashes = False
 # -------------------------
 # CORS configuration
 # -------------------------
-# Configure precise allowed origins via FRONTEND_ORIGIN_ALLOWLIST (comma-separated).
-# Defaults cover localhost and the common vscode-internal preview host ports (3000/3001).
+# We allow configuring the exact frontend origin via environment variables.
+# Priority (first found wins):
+#   1) BACKEND_CORS_ORIGINS (comma-separated list)
+#   2) FRONTEND_ORIGIN (single origin)
+#   3) FRONTEND_ORIGIN_ALLOWLIST or CORS_ALLOWED_ORIGINS (legacy comma-separated)
+#   4) Default to http://localhost:3000
 #
-# Environment variables:
-# - FRONTEND_ORIGIN_ALLOWLIST or CORS_ALLOWED_ORIGINS (comma-separated)
-#     Defaults to:
-#       http://localhost:3000,
-#       http://127.0.0.1:3000,
-#       http://vscode-internal-34539-beta.beta01.cloud.kavia.ai:3000,
-#       http://vscode-internal-34539-beta.beta01.cloud.kavia.ai:3001,
-#       https://vscode-internal-26250-beta.beta01.cloud.kavia.ai:3000,
-#       https://vscode-internal-28439-beta.beta01.cloud.kavia.ai:3001
-#   If FRONTEND_ORIGIN_ALLOWLIST/CORS_ALLOWED_ORIGINS is provided in the environment or .env,
-#   those values will override the defaults. To include an additional origin, append it to the
-#   comma-separated list (e.g., add https://vscode-internal-28439-beta.beta01.cloud.kavia.ai:3001).
-# - CORS_SUPPORTS_CREDENTIALS (optional bool): "true"/"false" to enable cookie-based auth if needed.
-#
+# Supports credentials via CORS_SUPPORTS_CREDENTIALS=true|false (default: false).
 # Allowed methods/headers include OPTIONS to ensure preflight succeeds.
-default_allowlist = [
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-    "http://vscode-internal-34539-beta.beta01.cloud.kavia.ai:3000",
-    "http://vscode-internal-34539-beta.beta01.cloud.kavia.ai:3001",
-    # Add HTTPS preview origins to avoid mixed-content and strict-origin issues
-    "https://vscode-internal-26250-beta.beta01.cloud.kavia.ai:3000",
-    # Explicitly allow the running frontend preview origin used in this workspace
-    "https://vscode-internal-28439-beta.beta01.cloud.kavia.ai:3000",
-    "https://vscode-internal-28439-beta.beta01.cloud.kavia.ai:3001",
-]
-# Support both legacy and new env var names
-env_allowlist_raw = os.environ.get("FRONTEND_ORIGIN_ALLOWLIST") or os.environ.get("CORS_ALLOWED_ORIGINS", "")
-if env_allowlist_raw.strip():
-    origins = [o.strip() for o in env_allowlist_raw.split(",") if o.strip()]
-else:
-    origins = list(default_allowlist)
-
-# De-duplicate while preserving order and ensure required preview hosts remain allowed
-_required = {
-    "https://vscode-internal-26250-beta.beta01.cloud.kavia.ai:3000",
-    "https://vscode-internal-28439-beta.beta01.cloud.kavia.ai:3001",
-}
-_seen = set()
-origins = [o for o in origins if not (o in _seen or _seen.add(o))]
-for req in _required:
-    if req not in origins:
-        origins.append(req)
 
 
 def _env_bool(v: str | None, default: bool = False) -> bool:
@@ -97,10 +60,38 @@ def _env_bool(v: str | None, default: bool = False) -> bool:
 
 supports_credentials = _env_bool(os.environ.get("CORS_SUPPORTS_CREDENTIALS"), default=False)
 
-# For this task, enable permissive CORS across all routes by default or via ALLOWED_ORIGINS="*".
-# Note: In production, prefer restricting allowed origins via env.
-allowed_origins_env = os.environ.get("ALLOWED_ORIGINS", "*").strip() or "*"
-cors_origins = "*" if allowed_origins_env == "*" else [o.strip() for o in allowed_origins_env.split(",") if o.strip()]
+
+def _resolve_allowed_origins() -> list[str] | str:
+    # New primary var: BACKEND_CORS_ORIGINS (comma-separated)
+    raw = os.environ.get("BACKEND_CORS_ORIGINS")
+    if raw and raw.strip():
+        values = [o.strip() for o in raw.split(",") if o.strip()]
+        return values if values else "http://localhost:3000"
+
+    # Secondary: single explicit FRONTEND_ORIGIN
+    single = os.environ.get("FRONTEND_ORIGIN")
+    if single and single.strip():
+        return [single.strip()]
+
+    # Legacy allowlists
+    legacy = os.environ.get("FRONTEND_ORIGIN_ALLOWLIST") or os.environ.get("CORS_ALLOWED_ORIGINS")
+    if legacy and legacy.strip():
+        values = [o.strip() for o in legacy.split(",") if o.strip()]
+        return values if values else "http://localhost:3000"
+
+    # Fallback default for common dev setup
+    return ["http://localhost:3000"]
+
+
+resolved_origins = _resolve_allowed_origins()
+
+# Normalize return type; flask-cors accepts "*" or list of origins.
+if isinstance(resolved_origins, str):
+    cors_origins = resolved_origins
+else:
+    cors_origins = [o for o in resolved_origins if o] or ["http://localhost:3000"]
+
+
 CORS(
     app,
     resources={r"/*": {"origins": cors_origins}},

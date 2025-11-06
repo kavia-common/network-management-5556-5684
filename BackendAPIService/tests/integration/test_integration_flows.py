@@ -30,6 +30,7 @@ class FakeCursor:
     def __iter__(self):
         return iter(self._data)
 
+
 class FakeCollection:
     def __init__(self, initial=None):
         self.docs = list(initial or [])

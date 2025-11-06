@@ -47,23 +47,27 @@ Fallback individual settings (used only if MONGODB_URI is not set and at least o
 
 ## CORS / Frontend integration
 
-The backend uses `flask-cors` and is configured to allow all origins by default for this task.
+CORS is provided via `flask-cors` and is initialized in `app/__init__.py`. It permits requests from your frontend origin and handles preflight (OPTIONS) automatically.
 
-- ALLOWED_ORIGINS
-  - Set to "*" to allow all origins (default in .env/.env.example).
-  - For production, replace with a comma-separated list of exact origins (scheme + host + port), e.g.:
-    `http://localhost:3000,http://127.0.0.1:3000,https://my-frontend.example.com`
-- FRONTEND_ORIGIN_ALLOWLIST / CORS_ALLOWED_ORIGINS
-  - Legacy variables supported for allowlists. If ALLOWED_ORIGINS is set, it takes precedence.
-- Behavior:
-  - Allowed methods: GET, POST, PUT, PATCH, DELETE, OPTIONS
-  - Allowed headers: Content-Type, Authorization, X-Requested-With
-  - Exposed headers: Content-Type, Content-Length, X-Request-Id
-  - Credentials: configurable via `CORS_SUPPORTS_CREDENTIALS` (default: false)
-- Notes:
-  - This configuration ensures preflight (OPTIONS) requests succeed.
-  - If you need cookie-based auth in the future, set `CORS_SUPPORTS_CREDENTIALS=true` and ensure your frontend uses proper cookie settings.
-  - CORS is initialized in `app/__init__.py`.
+Environment variables (priority order):
+1) BACKEND_CORS_ORIGINS — comma-separated list of allowed origins.
+   - Example: `BACKEND_CORS_ORIGINS="http://localhost:3000,http://127.0.0.1:3000"`
+2) FRONTEND_ORIGIN — single allowed origin.
+   - Example: `FRONTEND_ORIGIN="http://localhost:3000"`
+3) FRONTEND_ORIGIN_ALLOWLIST or CORS_ALLOWED_ORIGINS — legacy comma-separated allowlist.
+
+If none are set, default is `http://localhost:3000`.
+
+Behavior:
+- Allowed methods: GET, POST, PUT, PATCH, DELETE, OPTIONS
+- Allowed headers: Content-Type, Authorization, X-Requested-With
+- Exposed headers: Content-Type, Content-Length, X-Request-Id
+- Credentials: `CORS_SUPPORTS_CREDENTIALS` (default false). Set to `true` only if you intend to use cookies and configure your frontend to send credentials.
+
+Notes:
+- Preflight (OPTIONS) will succeed across all routes.
+- Health and API routes are covered by a global CORS resource rule (`/*`).
+- For production, set explicit origins rather than using wildcards.
 
 Example `.env` content (see `.env.example` for a ready-to-copy template):
 
