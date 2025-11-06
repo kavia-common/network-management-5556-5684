@@ -46,17 +46,13 @@ def _mask_uri(uri: str) -> str:
       mongodb+srv://user@cluster.mongodb.net/db -> mongodb+srv://***@cluster.mongodb.net/db
     """
     try:
-        # Split scheme and the rest
         if "://" not in uri:
             return uri
         scheme, rest = uri.split("://", 1)
-        # Credentials exist if '@' before first '/'
         at_index = rest.find("@")
         slash_index = rest.find("/")
         if at_index != -1 and (slash_index == -1 or at_index < slash_index):
-            # Replace credentials part up to '@'
             rest = "***@" + rest[at_index + 1 :]
-        # If credentials in query string etc., we do not attempt deeper parsing here
         return f"{scheme}://{rest}"
     except Exception:
         return uri
@@ -81,7 +77,7 @@ def _build_uri_from_parts() -> Tuple[str, str]:
       - MONGODB_PORT (default: 27017)
       - MONGODB_USERNAME (optional)
       - MONGODB_PASSWORD (optional)
-      - MONGODB_DB_NAME (default: network_devices)
+      - MONGODB_DB_NAME (default: network)
       - MONGODB_OPTIONS (optional, query string without leading '?')
 
     Returns: (uri, db_name)
@@ -99,7 +95,6 @@ def _build_uri_from_parts() -> Tuple[str, str]:
         p = urllib.parse.quote_plus(password or "")
         auth_part = f"{u}:{p}@"
 
-    # Base standard URI (not SRV) to be widely compatible
     base = f"mongodb://{auth_part}{host}:{port}/{db_name}"
     if options:
         if options.startswith("?"):
@@ -112,16 +107,15 @@ def _build_uri_from_parts() -> Tuple[str, str]:
 
 def _build_mongo_client() -> Tuple[MongoClient, str]:
     """
-    Build a MongoClient from environment variables.
+    Build a MongoClient from environment variables with lazy behavior.
 
     Preference:
       - Use MONGODB_URI if present (preferred)
-      - Otherwise construct from MONGODB_HOST/PORT/USERNAME/PASSWORD/etc., but
-        only when an explicit host/port is configured.
-      - Do NOT silently fall back to localhost unless explicitly configured.
+      - Otherwise construct from parts if any related vars set
+      - If nothing provided, do not raise here; allow app to start and only raise on actual DB access.
 
     Also reads:
-      - MONGODB_DB_NAME (default 'network_devices')
+      - MONGODB_DB_NAME (default 'network')
       - MONGODB_TLS (optional, boolean)
       - MONGODB_CONNECT_TIMEOUT_MS (optional, default 5000)
     """
@@ -138,25 +132,21 @@ def _build_mongo_client() -> Tuple[MongoClient, str]:
     elif explicit_parts_provided:
         uri, db_name = _build_uri_from_parts()
     else:
-        # No explicit configuration given: do not assume localhost; construct a non-host URI with db_name only.
-        # Raise a config error upon connect attempt to provide clear guidance.
-        raise RuntimeError(
-            "MongoDB configuration missing. Set MONGODB_URI or provide explicit parts "
-            "(MONGODB_HOST/MONGODB_PORT/etc.). No fallback to localhost is performed."
-        )
+        # Nothing configured: return a sentinel to indicate unconfigured state
+        return None, db_name  # type: ignore[return-value]
 
-    # TLS and timeout config
     tls = _env_bool(os.environ.get("MONGODB_TLS"))
     timeout_ms = int(os.environ.get("MONGODB_CONNECT_TIMEOUT_MS", "5000"))
     kwargs = {"serverSelectionTimeoutMS": timeout_ms}
     if tls:
         kwargs["tls"] = True
 
-    # Log effective target safely (no credentials)
     info = _effective_target_info(uri, timeout_ms, tls, db_name)
     print(
-        f"[MongoDB] Attempting connection | uri={info['uri']} db={info['db_name']} "
-        f"tls={info['tls']} timeout_ms={info['timeout_ms']}"
+        "[MongoDB] Connect | "
+        f"uri={info['uri']} db={info['db_name']} "
+        f"tls={info['tls']} "
+        f"timeout_ms={info['timeout_ms']}"
     )
 
     client = MongoClient(uri, **kwargs)
@@ -164,70 +154,69 @@ def _build_mongo_client() -> Tuple[MongoClient, str]:
 
 
 def _ensure_indexes(db: Database) -> None:
+    """Ensure required indexes for device collection."""
+    devices = db[DEVICES_COLLECTION]
+    devices.create_index([("ip_address", ASCENDING)], name="uniq_ip", unique=True, background=True)
+    devices.create_index([("type", ASCENDING)], name="idx_type", background=True)
+    devices.create_index([("status", ASCENDING)], name="idx_status", background=True)
+
+
+def _configuration_state() -> str:
     """
-    Ensure required indexes exist for the device collection configured via MONGODB_COLLECTION:
-      - Unique index on ip_address (name: 'uniq_ip')
-      - Non-unique indexes on 'type' and 'status'
+    Return configuration state string:
+      - 'unconfigured' if no URI/parts present
+      - 'configured' if some configuration exists (may still be invalid)
     """
-    devices = db[DEVICES_COLLECTION]  # DEVICES_COLLECTION defaults to 'device'
-
-    # Unique index on ip_address
-    devices.create_index(
-        [("ip_address", ASCENDING)],
-        name="uniq_ip",
-        unique=True,
-        background=True,
-    )
-
-    # Index on type
-    devices.create_index(
-        [("type", ASCENDING)],
-        name="idx_type",
-        background=True,
-    )
-
-    # Index on status
-    devices.create_index(
-        [("status", ASCENDING)],
-        name="idx_status",
-        background=True,
-    )
+    if os.environ.get("MONGODB_URI"):
+        return "configured"
+    if any(os.environ.get(k) for k in ("MONGODB_HOST", "MONGODB_PORT", "MONGODB_USERNAME", "MONGODB_PASSWORD", "MONGODB_OPTIONS")):
+        return "configured"
+    return "unconfigured"
 
 
 # PUBLIC_INTERFACE
 def get_client() -> MongoClient:
     """
-    Return a module-level singleton MongoClient, initialized from environment variables.
+    Return a module-level singleton MongoClient lazily.
 
-    On first initialization, verifies connectivity using 'ping' and ensures required indexes.
-    Raises RuntimeError with clear message if connection fails.
+    Behavior:
+    - If no Mongo configuration is provided, raise RuntimeError only when DB is actually accessed.
+    - If configuration exists but invalid, raise with clear details.
     """
     global _client, _db
     if _client is None:
         with _client_lock:
             if _client is None:
+                # Build client; may return None if unconfigured
+                client_db = _build_mongo_client()
+                if client_db[0] is None:
+                    # No configuration: warn and raise on access
+                    print(
+                        "[MongoDB][WARN] No MongoDB configuration detected "
+                        "(MONGODB_URI or parts). Database access is disabled until configured."
+                    )
+                    raise RuntimeError(
+                        "MongoDB is unconfigured. "
+                        "Set MONGODB_URI or explicit connection parts to enable database access."
+                    )
+                client, db_name = client_db  # type: ignore[misc]
                 try:
-                    client, db_name = _build_mongo_client()
-                    # Verify connectivity
                     client.admin.command("ping")
-                    # Store globals
                     _client = client
                     _db = _client[db_name]
-                    # Ensure indexes
                     _ensure_indexes(_db)
                 except PyMongoError as e:
-                    # Clear any partial state and raise a descriptive error
                     _client = None
                     _db = None
                     raise RuntimeError(f"Failed to connect to MongoDB: {e}") from e
-    return _client
+    return _client  # type: ignore[return-value]
 
 
 # PUBLIC_INTERFACE
 def get_db() -> Database:
     """Return the default Database instance, initializing the client if needed."""
     if _db is None:
-        get_client()  # ensures _db is set or raises
+        get_client()
     assert _db is not None
     return _db
 
@@ -245,54 +234,35 @@ def ping() -> Tuple[bool, Optional[str]]:
 
     Returns:
       (True, None) if healthy
-      (False, error_message) if unhealthy
+      (False, error_message) if unhealthy or unconfigured
 
-    The error message includes a masked URI host/cluster, db name, tls and timeout to aid troubleshooting.
+    The error message includes masked URI/target info when available.
     """
+    state = _configuration_state()
+    if state == "unconfigured":
+        return False, "MongoDB is unconfigured; set MONGODB_URI or explicit parts to enable connectivity."
     try:
-        client = get_client()
+        client_db = _build_mongo_client()
+        if client_db[0] is None:
+            return False, "MongoDB is unconfigured; set MONGODB_URI or explicit parts to enable connectivity."
+        client, db_name = client_db  # type: ignore[misc]
         client.admin.command("ping")
         return True, None
     except Exception as e:
-        # Try to rebuild info for actionable error message
         uri_env = os.environ.get("MONGODB_URI")
         db_name = os.environ.get("MONGODB_DB_NAME", DEFAULT_DB_NAME)
         tls = _env_bool(os.environ.get("MONGODB_TLS"))
         timeout_ms = int(os.environ.get("MONGODB_CONNECT_TIMEOUT_MS", "5000"))
-        explicit_parts_provided = any(
-            os.environ.get(k)
-            for k in ("MONGODB_HOST", "MONGODB_PORT", "MONGODB_USERNAME", "MONGODB_PASSWORD", "MONGODB_OPTIONS")
-        )
         try:
-            if uri_env:
-                uri = uri_env
-            elif explicit_parts_provided:
-                uri, db_name = _build_uri_from_parts()
-            else:
-                uri = "mongodb://<unset>"
+            uri = uri_env or (_build_uri_from_parts()[0] if state == "configured" else "mongodb://<unset>")
         except Exception:
             uri = "mongodb://<error-building-uri>"
         info = _effective_target_info(uri, timeout_ms, tls, db_name)
-        hint = (
-            "Verify MONGODB_URI, network access, credentials, and TLS settings. "
-            "Set MONGODB_CONNECT_TIMEOUT_MS for slower networks if needed."
-        )
+        hint = "Verify MONGODB_URI, network access, credentials, TLS, and firewall rules."
         return False, (
-            f"{str(e)} | target={info['uri']} db={info['db_name']} "
-            f"tls={info['tls']} timeout_ms={info['timeout_ms']} | hint: {hint}"
+            f"{str(e)} | target={info['uri']} "
+            f"db={info['db_name']} tls={info['tls']} "
+            f"timeout_ms={info['timeout_ms']} | hint: {hint}"
         )
 
-
-# Attempt eager initialization at import time to surface connectivity early but non-fatal.
-try:
-    # Try initialization if any Mongo-related configuration is present.
-    if (
-        os.environ.get("MONGODB_URI")
-        or os.environ.get("MONGODB_HOST")
-        or os.environ.get("MONGODB_DB_NAME")
-        or os.environ.get("MONGODB_COLLECTION")
-    ):
-        get_client()
-except Exception:
-    # Avoid crashing import; health endpoint will report down with details.
-    pass
+# Note: No eager initialization at import time. Lazy on first access only.

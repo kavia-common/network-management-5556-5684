@@ -18,34 +18,64 @@ class HealthCheck(MethodView):
         return {"message": "Healthy"}
 
 
+@blp.route("/health")
+class HealthStatus(MethodView):
+    """
+    Composite health endpoint that reports service and DB status.
+    Always returns HTTP 200 with db_status field.
+    """
+    def get(self):
+        """
+        GET /health
+        Returns:
+          200: {
+            "status": "ok",
+            "db_status": "unconfigured" | "ok" | "error",
+            "db_message": "<optional message when error/unconfigured>"
+          }
+        """
+        ok, err = _db.ping()
+        if err is None:
+            return jsonify({"status": "ok", "db_status": "ok"}), 200
+        # Determine unconfigured vs error by message content
+        db_status = "unconfigured" if "unconfigured" in err.lower() else "error"
+        return jsonify({"status": "ok", "db_status": db_status, "db_message": err}), 200
+
+
 @blp.route("/health/db")
 class DBHealth(MethodView):
     """
     Database health endpoint.
-    Pings MongoDB and returns JSON indicating status.
+    Pings MongoDB and returns JSON indicating status, never failing the overall app health.
     """
     def get(self):
         """
         GET /health/db
         Summary: Verify database connectivity.
         Returns:
-          200: {"status": "ok", "server": {"ok": 1.0}} on success with minimal server info
-          500: {"status": "error", "message": "<details>"} when connectivity fails
+          200 with:
+            {"status":"ok","server":{"ok":1.0},"db_status":"ok"} on success
+            {"status":"ok","db_status":"unconfigured","message":"..."} when not configured
+            {"status":"ok","db_status":"error","message":"..."} when configured but failing
         """
-        try:
-            # Use global client to get minimal server info without exposing sensitive details
-            client = _db.get_client()
-            # Mongo 'ping' along with basic admin info
-            ping_result = client.admin.command("ping")  # {'ok': 1.0} on success
-            # Only include minimal non-sensitive info
-            server_info = {"ok": ping_result.get("ok", 0)}
-            return jsonify({"status": "ok", "server": server_info}), 200
-        except Exception as e:
-            # Fallback to standard ping error details from helper for actionable message
-            ok, err = _db.ping()
-            # Optional logging without leaking secrets
-            logging.getLogger(__name__).error("DB healthcheck failed: %s", err or str(e))
-            return jsonify({"status": "error", "message": err or "Database ping failed"}), 500
+        ok, err = _db.ping()
+        if ok:
+            # Best-effort minimal server info
+            try:
+                client = _db.get_client()
+                ping_result = client.admin.command("ping")
+                server_info = {"ok": ping_result.get("ok", 0)}
+            except Exception:
+                server_info = {"ok": 1.0}
+            return jsonify({"status": "ok", "db_status": "ok", "server": server_info}), 200
+
+        # Not OK
+        db_status = "unconfigured" if err and "unconfigured" in err.lower() else "error"
+        payload = {"status": "ok", "db_status": db_status}
+        if err:
+            payload["message"] = err
+        # Always 200 to avoid taking app down due to DB
+        return jsonify(payload), 200
 
 
 @blp.route("/health/devices-summary")

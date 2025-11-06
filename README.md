@@ -10,7 +10,7 @@ Quick links:
 Setup:
 1) Create and configure environment variables
    - Copy BackendAPIService/.env.example to BackendAPIService/.env
-   - Ensure MONGODB_URI is set to a reachable MongoDB instance (e.g., mongodb://localhost:27017/network). The backend will fail fast at startup if this is missing or invalid.
+   - MONGODB_URI is optional for startup (lazy initialization). Set it to a reachable MongoDB instance (e.g., mongodb://localhost:27017/network) to enable database-backed endpoints. If provided but invalid, the app still starts and health endpoints will report the error.
    - Configure CORS to match your frontend origin:
        Preferred (comma-separated): BACKEND_CORS_ORIGINS="http://localhost:3000"
        Or single: FRONTEND_ORIGIN="http://localhost:3000"

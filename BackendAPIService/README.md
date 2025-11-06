@@ -5,7 +5,7 @@ Flask-based Backend API for Network Device Management.
 This service integrates with MongoDB via `pymongo` and exposes REST APIs (flask-smorest). This document covers environment variables, MongoDB configuration (Atlas-ready), CORS configuration, and available endpoints.
 
 Preview note:
-- The API now requires a valid `MONGODB_URI` at startup. If it is missing or invalid, the server will fail fast with a clear error message. Use `/health/db` for diagnostics once configured.
+- The API now starts even if `MONGODB_URI` is missing. MongoDB initialization is deferred until first database access. Use `/health` and `/health/db` for diagnostics. If `MONGODB_URI` is present but invalid, errors are logged and surfaced via health endpoints, but startup will not crash.
 
 ## Requirements
 
@@ -106,7 +106,7 @@ Note:
 
 ## Database and Indexes
 
-On startup, the app initializes a singleton `MongoClient`, verifies connectivity using `admin.command('ping')`, and ensures indexes on the `device` collection (or collection specified via `MONGODB_COLLECTION`):
+The app initializes a singleton `MongoClient` lazily on first database access. When configured and reachable, it verifies connectivity using `admin.command('ping')` and ensures indexes on the `device` collection (or collection specified via `MONGODB_COLLECTION`):
 
 Migration note:
 - The default database name has changed from `network_devices` to `network`.
@@ -242,13 +242,18 @@ python BackendAPIService/generate_openapi.py
 
 ## Verify MongoDB health
 
-- Ensure MongoDB is reachable at your MONGODB_URI.
-- Start the API as above.
-- Test the DB health endpoint:
+- Start the API as above (it will start even without DB configured).
+- General health endpoint:
+  - curl: `curl -s http://localhost:3001/health`
+  - Response examples:
+    - `{"status":"ok","db_status":"unconfigured","db_message":"..."}` when no DB configured
+    - `{"status":"ok","db_status":"ok"}` when DB reachable
+    - `{"status":"ok","db_status":"error","db_message":"..."}` when configured but failing
+- DB-specific endpoint:
   - curl: `curl -s http://localhost:3001/health/db`
-  - Expected response: `{"status":"ok"}` when the database is reachable.
-  - On failure, you'll get: `{"status":"error","message":"<details> | target=mongodb://***@host:port/db tls=false timeout_ms=5000 | hint: ..."}`
-    The target fields are masked to avoid leaking credentials and include effective TLS and timeout values.
+  - Always 200. When successful: `{"status":"ok","db_status":"ok","server":{"ok":1.0}}`
+  - When unconfigured or failing: `{"status":"ok","db_status":"unconfigured|error","message":"<details> | target=mongodb://*** ..."}`
+    Target fields are masked to avoid leaking credentials and include effective TLS and timeout values.
 
 ## Acceptance Criteria Mapping
 

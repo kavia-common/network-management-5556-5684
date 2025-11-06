@@ -8,4 +8,5 @@ How to run:
 Notes:
 - Tests stub MongoDB calls using monkeypatch and a FakeCollection; no live DB required.
 - Flask app is assembled inside the app fixture using flask-smorest blueprints from app.routes.
-- Endpoints covered: /devices CRUD+ping and /, /health/db, /health/devices-summary.
+- Endpoints covered: /devices CRUD+ping and /, /health, /health/db, /health/devices-summary.
+- Health endpoints always return HTTP 200; DB status is indicated via db_status in responses.
