@@ -1,14 +1,12 @@
-import json
-import types
 import pytest
 
-from app.routes.devices import _safe_ping
 
 # Utilities to build a fake collection with in-memory data
 class FakeResult:
     def __init__(self, inserted_id=None, deleted_count=0):
         self.inserted_id = inserted_id
         self.deleted_count = deleted_count
+
 
 class FakeCollection:
     def __init__(self, initial=None):
@@ -27,18 +25,24 @@ class FakeCollection:
     def find(self, query):
         # Return an object with sort/skip/limit method chainability
         items = list(self._match(query))
+
         class Cursor:
             def __init__(self, data):
                 self.data = data
+
             def sort(self, key, direction):
                 # naive; ignore direction for simplicity
                 return Cursor(list(self.data))
+
             def skip(self, n):
                 return Cursor(self.data[n:])
+
             def limit(self, n):
                 return Cursor(self.data[:n])
+
             def __iter__(self):
                 return iter(self.data)
+
         return Cursor(items)
 
     def insert_one(self, doc):
@@ -87,8 +91,22 @@ def app(monkeypatch):
 
     # Stub DB collection getter
     fake_data = [
-        {"_id": "id-1", "name": "Core", "ip_address": "192.168.0.1", "type": "router", "location": "DC", "status": "online"},
-        {"_id": "id-2", "name": "Edge", "ip_address": "10.0.0.2", "type": "switch", "location": "HQ", "status": "offline"},
+        {
+            "_id": "id-1",
+            "name": "Core",
+            "ip_address": "192.168.0.1",
+            "type": "router",
+            "location": "DC",
+            "status": "online",
+        },
+        {
+            "_id": "id-2",
+            "name": "Edge",
+            "ip_address": "10.0.0.2",
+            "type": "switch",
+            "location": "HQ",
+            "status": "offline",
+        },
     ]
     coll = FakeCollection(initial=fake_data)
 
@@ -102,16 +120,21 @@ def app(monkeypatch):
                 @staticmethod
                 def command(x):
                     return {"ok": 1.0}
+
             admin = Admin()
+
         return Dummy()
+
     monkeypatch.setattr(db_module, "get_client", fake_get_client)
 
     app = Flask(__name__)
-    app.config.update({
-        "API_TITLE": "Test API",
-        "API_VERSION": "v1",
-        "OPENAPI_VERSION": "3.0.3",
-    })
+    app.config.update(
+        {
+            "API_TITLE": "Test API",
+            "API_VERSION": "v1",
+            "OPENAPI_VERSION": "3.0.3",
+        }
+    )
     api = Api(app)
     api.register_blueprint(health_blp)
     api.register_blueprint(devices_blp)
@@ -176,10 +199,13 @@ def test_get_update_delete_device(client):
 
     # Now get should 404
     resp4 = client.get("/devices/id-1")
-    assert resp4.status_code in (404, 500)  # abort -> flask-smorest renders 404; fallback handler could 500
+    assert resp4.status_code in (
+        404,
+        500,
+    )  # abort -> flask-smorest renders 404; fallback handler could 500
     # If 500, ensure error payload
     if resp4.status_code == 500:
-      assert resp4.is_json
+        assert resp4.is_json
 
 
 def test_ping_endpoint_updates_status(client, monkeypatch):

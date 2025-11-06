@@ -1,5 +1,3 @@
-import json
-import types
 import pytest
 
 from flask import Flask
@@ -8,10 +6,12 @@ from flask_smorest import Api
 # We assemble a real Flask app instance by importing app and registering blueprints.
 # Mongo interactions are stubbed with a simple in-memory fake collection to avoid external dependencies.
 
+
 class FakeResult:
     def __init__(self, inserted_id=None, deleted_count=0):
         self.inserted_id = inserted_id
         self.deleted_count = deleted_count
+
 
 class FakeCursor:
     def __init__(self, data):

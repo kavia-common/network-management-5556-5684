@@ -184,10 +184,12 @@ def handle_unexpected_exception(e: Exception):
     return jsonify(response), 500
 
 
-# Try DB initialization on startup to surface issues early, but do not abort the app.
-# Health endpoint will still report detailed DB errors.
+# Try DB initialization on startup and fail fast with clear message if configuration is missing/invalid.
+# Health endpoint will still report detailed DB errors, but app should fail early per requirements.
 try:
     _db.get_client()  # initializes client and ensures indexes; will ping internally
 except Exception as e:
-    # Log warning without crashing so the API (including /health) can start.
-    print(f"[Startup][WARN] MongoDB initialization failed (continuing to start API): {e}")
+    # Log error and raise to produce non-zero exit for missing/invalid MONGODB_URI
+    print(f"[Startup][ERROR] MongoDB initialization failed: {e}")
+    # Raising an exception here will stop Flask from starting (fail fast)
+    raise
