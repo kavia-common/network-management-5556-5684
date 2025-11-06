@@ -32,7 +32,8 @@ except Exception as _e:
     # If python-dotenv is not installed or any error occurs, proceed without failing.
     print(f"[Startup][WARN] Could not load .env automatically: {_e}")
 
-# Import db to initialize Mongo connection on startup if env is configured
+# Import db module but do not force initialization at startup.
+# We will defer connection until first DB access and have health endpoint report status.
 from . import db as _db  # noqa: E402,F401
 
 app = Flask(__name__)
