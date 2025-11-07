@@ -18,6 +18,8 @@ from app.schemas import (
     DeviceListOutSchema,
     serialize_devices,
 )
+# Import serialize_device to ensure single-object handlers return JSON-serializable dicts
+from app.schemas import serialize_device
 
 logger = logging.getLogger(__name__)
 
@@ -29,9 +31,16 @@ blp = Blueprint(
 )
 
 
-def _objid(id_str: str) -> ObjectId:
+def _objid(id_str: str):
+    """
+    Parse an ID string:
+    - If it's a valid ObjectId hex string, return an ObjectId
+    - Otherwise, return the original string (supporting fake/in-memory collections in tests)
+    """
     try:
-        return ObjectId(id_str)
+        if ObjectId.is_valid(id_str):
+            return ObjectId(id_str)
+        return id_str
     except Exception:
         abort(404, message="Device not found")
 
@@ -237,10 +246,17 @@ class DeviceItem(MethodView):
     def get(self, id: str):
         try:
             coll = get_collection(DEVICES_COLLECTION)
-            doc = coll.find_one({"_id": _objid(id)})
+            key = _objid(id)
+            doc = coll.find_one({"_id": key})
             if not doc:
                 abort(404, message="Device not found")
-            return doc
+            payload = serialize_device(doc)
+            return Response(
+                response=json.dumps(payload),
+                status=200,
+                mimetype="application/json",
+                content_type="application/json; charset=utf-8",
+            )
         except Exception as e:
             logger.error("GET /devices/%s failed: %s", id, str(e))
             return Response(
@@ -266,10 +282,21 @@ class DeviceItem(MethodView):
                     return_document=True,  # type: ignore[arg-type]
                 )
             except DuplicateKeyError:
-                abort(400, error={"field": "ip_address", "message": "already exists"})
+                return Response(
+                    response=json.dumps({"error": {"field": "ip_address", "message": "already exists"}}),
+                    status=409,
+                    mimetype="application/json",
+                    content_type="application/json; charset=utf-8",
+                )
             if not res:
                 abort(404, message="Device not found")
-            return res
+            payload = serialize_device(res)
+            return Response(
+                response=json.dumps(payload),
+                status=200,
+                mimetype="application/json",
+                content_type="application/json; charset=utf-8",
+            )
         except Exception as e:
             logger.error("PUT /devices/%s failed: %s", id, str(e))
             return Response(
@@ -311,7 +338,8 @@ class DevicePing(MethodView):
         """
         try:
             coll = get_collection(DEVICES_COLLECTION)
-            doc = coll.find_one({"_id": _objid(id)})
+            key = _objid(id)
+            doc = coll.find_one({"_id": key})
             if not doc:
                 abort(404, message="Device not found")
 
@@ -322,7 +350,15 @@ class DevicePing(MethodView):
                 {"$set": {"status": status, "last_checked": last, "updated_at": datetime.utcnow()}},
                 return_document=True,  # type: ignore[arg-type]
             )
-            return updated
+            if not updated:
+                abort(404, message="Device not found")
+            payload = serialize_device(updated)
+            return Response(
+                response=json.dumps(payload),
+                status=200,
+                mimetype="application/json",
+                content_type="application/json; charset=utf-8",
+            )
         except Exception as e:
             logger.error("POST /devices/%s/ping failed: %s", id, str(e))
             return Response(
