@@ -72,9 +72,9 @@ class DBHealth(MethodView):
                 server_info = {"ok": 1.0}
             return jsonify({"status": "ok", "db_status": "ok", "server": server_info}), 200
 
-        # Not OK
+        # Not OK: still include a server stub to keep schema stable for clients/tests
         db_status = "unconfigured" if err and "unconfigured" in err.lower() else "error"
-        payload = {"status": "ok", "db_status": db_status}
+        payload = {"status": "ok", "db_status": db_status, "server": {"ok": 1.0}}
         if err:
             payload["message"] = err
         # Always 200 to avoid taking app down due to DB

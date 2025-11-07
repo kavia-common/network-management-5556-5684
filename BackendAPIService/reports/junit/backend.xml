@@ -1,9 +1,13 @@
-<?xml version="1.0" encoding="utf-8"?><testsuites><testsuite name="pytest" errors="0" failures="1" skipped="0" tests="1" time="0.296" timestamp="2025-11-07T08:46:00.993098+00:00" hostname="80e12e0d5956"><testcase classname="tests.unit.test_devices_endpoints" name="test_list_devices_envelope" time="0.241"><failure message="assert 500 == 200&#10; +  where 500 = &lt;WrapperTestResponse streamed [500 INTERNAL SERVER ERROR]&gt;.status_code">client = &lt;FlaskClient &lt;Flask 'test_devices_endpoints'&gt;&gt;
+<?xml version="1.0" encoding="utf-8"?><testsuites><testsuite name="pytest" errors="0" failures="1" skipped="1" tests="13" time="0.426" timestamp="2025-11-07T08:49:15.024457+00:00" hostname="80e12e0d5956"><testcase classname="tests.integration.test_integration_flows" name="test_health_endpoints_and_cors" time="0.016" /><testcase classname="tests.integration.test_integration_flows" name="test_devices_list_envelope_pagination_and_cors" time="0.012" /><testcase classname="tests.integration.test_integration_flows" name="test_devices_crud_and_duplicate_ip" time="0.016" /><testcase classname="tests.integration.test_integration_flows" name="test_preflight_options_and_cors" time="0.012" /><testcase classname="tests.unit.test_devices_endpoints" name="test_list_devices_envelope" time="0.013" /><testcase classname="tests.unit.test_devices_endpoints" name="test_create_device_and_unique_ip" time="0.013" /><testcase classname="tests.unit.test_devices_endpoints" name="test_get_update_delete_device" time="0.013" /><testcase classname="tests.unit.test_devices_endpoints" name="test_ping_endpoint_updates_status" time="0.012" /><testcase classname="tests.unit.test_health_endpoints" name="test_root_health" time="0.013" /><testcase classname="tests.unit.test_health_endpoints" name="test_db_health_ok" time="0.012"><failure message="AssertionError: assert ('server' in {'db_status': 'unconfigured', 'message': 'MongoDB is unconfigured; set MONGODB_URI or explicit parts to enable connectivity.', 'status': 'ok'})">client = &lt;FlaskClient &lt;Flask 'conftest'&gt;&gt;
+monkeypatch = &lt;_pytest.monkeypatch.MonkeyPatch object at 0x7f7791a602f0&gt;
 
-    def test_list_devices_envelope(client):
-        resp = client.get("/devices?page=1&amp;limit=10")
-&gt;       assert resp.status_code == 200
-E       assert 500 == 200
-E        +  where 500 = &lt;WrapperTestResponse streamed [500 INTERNAL SERVER ERROR]&gt;.status_code
+    def test_db_health_ok(client, monkeypatch):
+        # monkeypatched in conftest(app fixture) to return ok
+        resp = client.get("/health/db")
+        assert resp.status_code == 200
+        j = resp.get_json()
+        assert j["status"] == "ok"
+&gt;       assert "server" in j and "ok" in j["server"]
+E       AssertionError: assert ('server' in {'db_status': 'unconfigured', 'message': 'MongoDB is unconfigured; set MONGODB_URI or explicit parts to enable connectivity.', 'status': 'ok'})
 
-tests/unit/test_devices_endpoints.py:151: AssertionError</failure></testcase></testsuite></testsuites>
+tests/unit/test_health_endpoints.py:14: AssertionError</failure></testcase><testcase classname="tests.unit.test_health_endpoints" name="test_devices_summary" time="0.012" /><testcase classname="tests.unit.test_health_route" name="test_health_route_status_code" time="0.000"><skipped type="pytest.skip" message="create_app not available yet">/home/kavia/workspace/code-generation/network-management-5556-5684/BackendAPIService/tests/unit/test_health_route.py:9: create_app not available yet</skipped></testcase><testcase classname="tests.unit.test_sanity" name="test_sanity" time="0.000" /></testsuite></testsuites>
