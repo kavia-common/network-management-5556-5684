@@ -10,7 +10,8 @@ from flask.views import MethodView
 from flask_smorest import Blueprint, abort
 from pymongo.errors import DuplicateKeyError
 
-from app.db import get_collection, DEVICES_COLLECTION
+# Import db as a module namespace so tests can monkeypatch get_collection/DEVICES_COLLECTION
+from app import db as db_module
 from app.schemas import (
     DeviceCreateSchema,
     DeviceUpdateSchema,
@@ -107,7 +108,8 @@ class DevicesList(MethodView):
           Logs computed page/limit, total count, item count, and content type.
         """
         try:
-            coll = get_collection(DEVICES_COLLECTION)
+            # Obtain collection through db module indirection to allow tests to monkeypatch db.get_collection
+            coll = db_module.get_collection(db_module.DEVICES_COLLECTION)
 
             # Resolve pagination with safe defaults
             page_param = request.args.get("page")
@@ -173,7 +175,7 @@ class DevicesList(MethodView):
         Enforces unique ip_address; returns 400 with { field, message } if duplicate.
         """
         try:
-            coll = get_collection(DEVICES_COLLECTION)
+            coll = db_module.get_collection(db_module.DEVICES_COLLECTION)
             doc = dict(json_data)
             doc.update(_timestamps_for_create())
             try:
@@ -188,7 +190,6 @@ class DevicesList(MethodView):
                 )
             created = coll.find_one({"_id": res.inserted_id})
             # Serialize via schema for consistency, then return explicit JSON Response
-            from app.schemas import serialize_device
             payload = serialize_device(created)
             return Response(
                 response=json.dumps(payload),
@@ -216,7 +217,7 @@ class DevicesListRaw(MethodView):
         This endpoint returns the plain list of devices (serialized) without envelope.
         """
         try:
-            coll = get_collection(DEVICES_COLLECTION)
+            coll = db_module.get_collection(db_module.DEVICES_COLLECTION)
             docs = list(coll.find({}).sort("created_at", -1))
             items = serialize_devices(docs)
             logger.info(
@@ -245,7 +246,7 @@ class DeviceItem(MethodView):
     @blp.response(200, DeviceOutSchema, description="Get a device by id")
     def get(self, id: str):
         try:
-            coll = get_collection(DEVICES_COLLECTION)
+            coll = db_module.get_collection(db_module.DEVICES_COLLECTION)
             key = _objid(id)
             doc = coll.find_one({"_id": key})
             if not doc:
@@ -270,7 +271,7 @@ class DeviceItem(MethodView):
     @blp.response(200, DeviceOutSchema, description="Update a device by id")
     def put(self, json_data, id: str):
         try:
-            coll = get_collection(DEVICES_COLLECTION)
+            coll = db_module.get_collection(db_module.DEVICES_COLLECTION)
             update_fields = dict(json_data)
             if not update_fields:
                 abort(400, message="No fields provided for update")
@@ -309,7 +310,7 @@ class DeviceItem(MethodView):
     @blp.response(204, description="Delete a device by id")
     def delete(self, id: str):
         try:
-            coll = get_collection(DEVICES_COLLECTION)
+            coll = db_module.get_collection(db_module.DEVICES_COLLECTION)
             res = coll.delete_one({"_id": _objid(id)})
             if res.deleted_count == 0:
                 abort(404, message="Device not found")
@@ -337,7 +338,7 @@ class DevicePing(MethodView):
         - last_checked (UTC timestamp)
         """
         try:
-            coll = get_collection(DEVICES_COLLECTION)
+            coll = db_module.get_collection(db_module.DEVICES_COLLECTION)
             key = _objid(id)
             doc = coll.find_one({"_id": key})
             if not doc:

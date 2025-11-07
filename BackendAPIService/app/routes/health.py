@@ -4,6 +4,7 @@ from flask import jsonify
 import logging
 
 # Import the db module as a namespace so tests can monkeypatch functions like db.get_db, db.get_collection, etc.
+# Import as namespace so tests can monkeypatch members like get_client/get_collection.
 import app.db as db
 
 blp = Blueprint("Health", "health", url_prefix="/", description="Health check route")
