@@ -1,4 +1,24 @@
-<?xml version="1.0" encoding="utf-8"?><testsuites><testsuite name="pytest" errors="0" failures="1" skipped="0" tests="1" time="0.301" timestamp="2025-11-07T07:00:24.641613+00:00" hostname="5c8687152136"><testcase classname="tests.integration.test_integration_flows" name="test_devices_list_envelope_pagination_and_cors" time="0.121"><failure message="assert 500 == 200&#10; +  where 500 = &lt;WrapperTestResponse streamed [500 INTERNAL SERVER ERROR]&gt;.status_code">client = &lt;FlaskClient &lt;Flask 'test_integration_flows'&gt;&gt;
+<?xml version="1.0" encoding="utf-8"?><testsuites><testsuite name="pytest" errors="3" failures="7" skipped="1" tests="13" time="0.422" timestamp="2025-11-07T07:05:29.610835+00:00" hostname="5c8687152136"><testcase classname="tests.integration.test_integration_flows" name="test_health_endpoints_and_cors" time="0.017"><failure message="assert 500 == 200&#10; +  where 500 = &lt;WrapperTestResponse streamed [500 INTERNAL SERVER ERROR]&gt;.status_code">client = &lt;FlaskClient &lt;Flask 'test_integration_flows'&gt;&gt;
+
+    def test_health_endpoints_and_cors(client):
+        r = client.get("/")
+        assert r.status_code == 200
+        j = r.get_json()
+        assert j["message"] == "Healthy"
+        _assert_cors_headers(r)
+    
+        r2 = client.get("/health/db")
+        assert r2.status_code == 200
+        j2 = r2.get_json()
+        assert j2["status"] == "ok"
+        _assert_cors_headers(r2)
+    
+        r3 = client.get("/health/devices-summary")
+&gt;       assert r3.status_code == 200
+E       assert 500 == 200
+E        +  where 500 = &lt;WrapperTestResponse streamed [500 INTERNAL SERVER ERROR]&gt;.status_code
+
+tests/integration/test_integration_flows.py:181: AssertionError</failure></testcase><testcase classname="tests.integration.test_integration_flows" name="test_devices_list_envelope_pagination_and_cors" time="0.013"><failure message="assert 500 == 200&#10; +  where 500 = &lt;WrapperTestResponse streamed [500 INTERNAL SERVER ERROR]&gt;.status_code">client = &lt;FlaskClient &lt;Flask 'test_integration_flows'&gt;&gt;
 
     def test_devices_list_envelope_pagination_and_cors(client):
         r = client.get("/devices?page=1&amp;limit=10")
@@ -6,4 +26,84 @@
 E       assert 500 == 200
 E        +  where 500 = &lt;WrapperTestResponse streamed [500 INTERNAL SERVER ERROR]&gt;.status_code
 
-tests/integration/test_integration_flows.py:189: AssertionError</failure></testcase></testsuite></testsuites>
+tests/integration/test_integration_flows.py:189: AssertionError</failure></testcase><testcase classname="tests.integration.test_integration_flows" name="test_devices_crud_and_duplicate_ip" time="0.012"><failure message="assert 500 == 201&#10; +  where 500 = &lt;WrapperTestResponse streamed [500 INTERNAL SERVER ERROR]&gt;.status_code">client = &lt;FlaskClient &lt;Flask 'test_integration_flows'&gt;&gt;
+monkeypatch = &lt;_pytest.monkeypatch.MonkeyPatch object at 0x7fbf97eb1d00&gt;
+
+    def test_devices_crud_and_duplicate_ip(client, monkeypatch):
+        # Create
+        payload = {
+            "name": "Web Server",
+            "ip_address": "10.10.10.10",
+            "type": "server",
+            "location": "HQ",
+            "status": "online",
+        }
+        r = client.post("/devices", json=payload)
+&gt;       assert r.status_code == 201
+E       assert 500 == 201
+E        +  where 500 = &lt;WrapperTestResponse streamed [500 INTERNAL SERVER ERROR]&gt;.status_code
+
+tests/integration/test_integration_flows.py:210: AssertionError</failure></testcase><testcase classname="tests.integration.test_integration_flows" name="test_preflight_options_and_cors" time="0.013" /><testcase classname="tests.unit.test_devices_endpoints" name="test_list_devices_envelope" time="0.012"><failure message="assert 500 == 200&#10; +  where 500 = &lt;WrapperTestResponse streamed [500 INTERNAL SERVER ERROR]&gt;.status_code">client = &lt;FlaskClient &lt;Flask 'test_devices_endpoints'&gt;&gt;
+
+    def test_list_devices_envelope(client):
+        resp = client.get("/devices?page=1&amp;limit=10")
+&gt;       assert resp.status_code == 200
+E       assert 500 == 200
+E        +  where 500 = &lt;WrapperTestResponse streamed [500 INTERNAL SERVER ERROR]&gt;.status_code
+
+tests/unit/test_devices_endpoints.py:151: AssertionError</failure></testcase><testcase classname="tests.unit.test_devices_endpoints" name="test_create_device_and_unique_ip" time="0.012"><failure message="assert 500 == 201&#10; +  where 500 = &lt;WrapperTestResponse streamed [500 INTERNAL SERVER ERROR]&gt;.status_code">client = &lt;FlaskClient &lt;Flask 'test_devices_endpoints'&gt;&gt;
+monkeypatch = &lt;_pytest.monkeypatch.MonkeyPatch object at 0x7fbf97eb0260&gt;
+
+    def test_create_device_and_unique_ip(client, monkeypatch):
+        # First create success
+        payload = {
+            "name": "Web",
+            "ip_address": "10.0.0.5",
+            "type": "server",
+            "location": "HQ",
+            "status": "online",
+        }
+        resp = client.post("/devices", json=payload)
+&gt;       assert resp.status_code == 201
+E       assert 500 == 201
+E        +  where 500 = &lt;WrapperTestResponse streamed [500 INTERNAL SERVER ERROR]&gt;.status_code
+
+tests/unit/test_devices_endpoints.py:170: AssertionError</failure></testcase><testcase classname="tests.unit.test_devices_endpoints" name="test_get_update_delete_device" time="0.012"><failure message="assert 500 == 200&#10; +  where 500 = &lt;WrapperTestResponse streamed [500 INTERNAL SERVER ERROR]&gt;.status_code">client = &lt;FlaskClient &lt;Flask 'test_devices_endpoints'&gt;&gt;
+
+    def test_get_update_delete_device(client):
+        # Get existing
+        resp = client.get("/devices/id-1")
+&gt;       assert resp.status_code == 200
+E       assert 500 == 200
+E        +  where 500 = &lt;WrapperTestResponse streamed [500 INTERNAL SERVER ERROR]&gt;.status_code
+
+tests/unit/test_devices_endpoints.py:186: AssertionError</failure></testcase><testcase classname="tests.unit.test_devices_endpoints" name="test_ping_endpoint_updates_status" time="0.012"><failure message="assert 500 == 200&#10; +  where 500 = &lt;WrapperTestResponse streamed [500 INTERNAL SERVER ERROR]&gt;.status_code">client = &lt;FlaskClient &lt;Flask 'test_devices_endpoints'&gt;&gt;
+monkeypatch = &lt;_pytest.monkeypatch.MonkeyPatch object at 0x7fbf97d06660&gt;
+
+    def test_ping_endpoint_updates_status(client, monkeypatch):
+        # Mock _safe_ping to return online
+        monkeypatch.setattr("app.routes.devices._safe_ping", lambda ip: ("online", None))
+        resp = client.post("/devices/id-2/ping")
+&gt;       assert resp.status_code == 200
+E       assert 500 == 200
+E        +  where 500 = &lt;WrapperTestResponse streamed [500 INTERNAL SERVER ERROR]&gt;.status_code
+
+tests/unit/test_devices_endpoints.py:215: AssertionError</failure></testcase><testcase classname="tests.unit.test_health_endpoints" name="test_root_health" time="0.000"><error message="failed on setup with &quot;file /home/kavia/workspace/code-generation/network-management-5556-5684/BackendAPIService/tests/unit/test_health_endpoints.py, line 1&#10;  def test_root_health(client):&#10;E       fixture 'client' not found&#10;&gt;       available fixtures: anyio_backend, anyio_backend_name, anyio_backend_options, cache, capfd, capfdbinary, caplog, capsys, capsysbinary, doctest_namespace, extra, extras, include_metadata_in_junit_xml, metadata, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory&#10;&gt;       use 'pytest --fixtures [testpath]' for help on them.&#10;&#10;/home/kavia/workspace/code-generation/network-management-5556-5684/BackendAPIService/tests/unit/test_health_endpoints.py:1&quot;">file /home/kavia/workspace/code-generation/network-management-5556-5684/BackendAPIService/tests/unit/test_health_endpoints.py, line 1
+  def test_root_health(client):
+E       fixture 'client' not found
+&gt;       available fixtures: anyio_backend, anyio_backend_name, anyio_backend_options, cache, capfd, capfdbinary, caplog, capsys, capsysbinary, doctest_namespace, extra, extras, include_metadata_in_junit_xml, metadata, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
+&gt;       use 'pytest --fixtures [testpath]' for help on them.
+
+/home/kavia/workspace/code-generation/network-management-5556-5684/BackendAPIService/tests/unit/test_health_endpoints.py:1</error></testcase><testcase classname="tests.unit.test_health_endpoints" name="test_db_health_ok" time="0.000"><error message="failed on setup with &quot;file /home/kavia/workspace/code-generation/network-management-5556-5684/BackendAPIService/tests/unit/test_health_endpoints.py, line 8&#10;  def test_db_health_ok(client, monkeypatch):&#10;E       fixture 'client' not found&#10;&gt;       available fixtures: anyio_backend, anyio_backend_name, anyio_backend_options, cache, capfd, capfdbinary, caplog, capsys, capsysbinary, doctest_namespace, extra, extras, include_metadata_in_junit_xml, metadata, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory&#10;&gt;       use 'pytest --fixtures [testpath]' for help on them.&#10;&#10;/home/kavia/workspace/code-generation/network-management-5556-5684/BackendAPIService/tests/unit/test_health_endpoints.py:8&quot;">file /home/kavia/workspace/code-generation/network-management-5556-5684/BackendAPIService/tests/unit/test_health_endpoints.py, line 8
+  def test_db_health_ok(client, monkeypatch):
+E       fixture 'client' not found
+&gt;       available fixtures: anyio_backend, anyio_backend_name, anyio_backend_options, cache, capfd, capfdbinary, caplog, capsys, capsysbinary, doctest_namespace, extra, extras, include_metadata_in_junit_xml, metadata, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
+&gt;       use 'pytest --fixtures [testpath]' for help on them.
+
+/home/kavia/workspace/code-generation/network-management-5556-5684/BackendAPIService/tests/unit/test_health_endpoints.py:8</error></testcase><testcase classname="tests.unit.test_health_endpoints" name="test_devices_summary" time="0.000"><error message="failed on setup with &quot;file /home/kavia/workspace/code-generation/network-management-5556-5684/BackendAPIService/tests/unit/test_health_endpoints.py, line 17&#10;  def test_devices_summary(client, monkeypatch):&#10;E       fixture 'client' not found&#10;&gt;       available fixtures: anyio_backend, anyio_backend_name, anyio_backend_options, cache, capfd, capfdbinary, caplog, capsys, capsysbinary, doctest_namespace, extra, extras, include_metadata_in_junit_xml, metadata, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory&#10;&gt;       use 'pytest --fixtures [testpath]' for help on them.&#10;&#10;/home/kavia/workspace/code-generation/network-management-5556-5684/BackendAPIService/tests/unit/test_health_endpoints.py:17&quot;">file /home/kavia/workspace/code-generation/network-management-5556-5684/BackendAPIService/tests/unit/test_health_endpoints.py, line 17
+  def test_devices_summary(client, monkeypatch):
+E       fixture 'client' not found
+&gt;       available fixtures: anyio_backend, anyio_backend_name, anyio_backend_options, cache, capfd, capfdbinary, caplog, capsys, capsysbinary, doctest_namespace, extra, extras, include_metadata_in_junit_xml, metadata, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory
+&gt;       use 'pytest --fixtures [testpath]' for help on them.
+
+/home/kavia/workspace/code-generation/network-management-5556-5684/BackendAPIService/tests/unit/test_health_endpoints.py:17</error></testcase><testcase classname="tests.unit.test_health_route" name="test_health_route_status_code" time="0.000"><skipped type="pytest.skip" message="create_app not available yet">/home/kavia/workspace/code-generation/network-management-5556-5684/BackendAPIService/tests/unit/test_health_route.py:9: create_app not available yet</skipped></testcase><testcase classname="tests.unit.test_sanity" name="test_sanity" time="0.000" /></testsuite></testsuites>

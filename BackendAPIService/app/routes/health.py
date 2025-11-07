@@ -1,11 +1,10 @@
 from flask_smorest import Blueprint
 from flask.views import MethodView
-from app import db as _db  # use db.ping for health
 from flask import jsonify
 import logging
 
-# Import helpers for the devices summary endpoint
-from app.db import get_db, get_collection, DEVICES_COLLECTION
+# Import the db module as a namespace so tests can monkeypatch functions like db.get_db, db.get_collection, etc.
+import app.db as db
 
 blp = Blueprint("Health", "health", url_prefix="/", description="Health check route")
 
@@ -13,6 +12,7 @@ blp = Blueprint("Health", "health", url_prefix="/", description="Health check ro
 @blp.route("/")
 class HealthCheck(MethodView):
     """Simple health check endpoint."""
+
     def get(self):
         """Return service health."""
         return {"message": "Healthy"}
@@ -24,6 +24,7 @@ class HealthStatus(MethodView):
     Composite health endpoint that reports service and DB status.
     Always returns HTTP 200 with db_status field.
     """
+
     def get(self):
         """
         GET /health
@@ -34,7 +35,7 @@ class HealthStatus(MethodView):
             "db_message": "<optional message when error/unconfigured>"
           }
         """
-        ok, err = _db.ping()
+        ok, err = db.ping()
         if err is None:
             return jsonify({"status": "ok", "db_status": "ok"}), 200
         # Determine unconfigured vs error by message content
@@ -48,6 +49,7 @@ class DBHealth(MethodView):
     Database health endpoint.
     Pings MongoDB and returns JSON indicating status, never failing the overall app health.
     """
+
     def get(self):
         """
         GET /health/db
@@ -58,11 +60,11 @@ class DBHealth(MethodView):
             {"status":"ok","db_status":"unconfigured","message":"..."} when not configured
             {"status":"ok","db_status":"error","message":"..."} when configured but failing
         """
-        ok, err = _db.ping()
+        ok, err = db.ping()
         if ok:
             # Best-effort minimal server info
             try:
-                client = _db.get_client()
+                client = db.get_client()
                 ping_result = client.admin.command("ping")
                 server_info = {"ok": ping_result.get("ok", 0)}
             except Exception:
@@ -84,6 +86,7 @@ class DevicesSummary(MethodView):
     Diagnostic endpoint to confirm active DB/collection and document visibility.
     Returns minimal, non-sensitive details to help diagnose data visibility issues.
     """
+
     def get(self):
         """
         GET /health/devices-summary
@@ -101,14 +104,16 @@ class DevicesSummary(MethodView):
           - Does not expose credentials or full documents.
         """
         try:
-            # Derive dbName in a tolerant way; tests may monkeypatch get_collection only.
+            # Gracefully derive dbName; tolerate failures and None return
             try:
-                db = get_db()
-                db_name = getattr(db, "name", "unknown") or "unknown"
+                active_db = db.get_db()
+                db_name = getattr(active_db, "name", "unknown") or "unknown"
             except Exception:
                 db_name = "unknown"
 
-            coll = get_collection(DEVICES_COLLECTION)
+            # Use namespaced access for collection helpers/constants
+            coll = db.get_collection(db.DEVICES_COLLECTION)
+
             count = 0
             sample_ids = []
             try:
@@ -121,7 +126,7 @@ class DevicesSummary(MethodView):
 
             return jsonify({
                 "dbName": db_name,
-                "collection": DEVICES_COLLECTION,
+                "collection": db.DEVICES_COLLECTION,
                 "count": count,
                 "sampleIds": sample_ids,
             }), 200
