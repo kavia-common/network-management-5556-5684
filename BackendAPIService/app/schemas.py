@@ -66,21 +66,40 @@ class DeviceOutSchema(Schema):
 
     @pre_dump
     def map_mongo_fields(self, data: Dict[str, Any], **kwargs) -> Dict[str, Any]:
-        """Map Mongo _id -> id and ensure timestamps are datetime."""
-        # Convert Mongo document to output dict
+        """Map Mongo _id -> id and ensure timestamps are normalized when possible.
+
+        Tolerant behavior:
+        - If value is a string with trailing 'Z', convert to '+00:00' and try fromisoformat.
+        - If parsing fails, leave the original value unchanged (do not set None).
+        - If value is neither str nor datetime, leave as-is.
+        """
         out = dict(data)
+
         # map _id to id
         _id = out.pop("_id", None)
         if _id is not None:
             out["id"] = str(_id)
-        # Ensure datetime objects are present
-        for k in ("created_at", "updated_at", "last_checked"):
-            if k in out and out[k] is not None and not isinstance(out[k], datetime):
-                # Attempt parse if string, else set None
+
+        def _maybe_parse_iso(value: Any) -> Any:
+            if value is None or isinstance(value, datetime):
+                return value
+            if isinstance(value, str):
+                v = value
+                # Normalize trailing Z (UTC) to +00:00 for datetime.fromisoformat
+                if v.endswith("Z"):
+                    v = v[:-1] + "+00:00"
                 try:
-                    out[k] = datetime.fromisoformat(str(out[k]))
+                    return datetime.fromisoformat(v)
                 except Exception:
-                    out[k] = None
+                    # Leave original value when parsing fails
+                    return value
+            # Unknown types: return as-is
+            return value
+
+        for k in ("created_at", "updated_at", "last_checked"):
+            if k in out:
+                out[k] = _maybe_parse_iso(out.get(k))
+
         return out
 
 

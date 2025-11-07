@@ -170,7 +170,16 @@ def _configuration_state() -> str:
     """
     if os.environ.get("MONGODB_URI"):
         return "configured"
-    if any(os.environ.get(k) for k in ("MONGODB_HOST", "MONGODB_PORT", "MONGODB_USERNAME", "MONGODB_PASSWORD", "MONGODB_OPTIONS")):
+    if any(
+        os.environ.get(k)
+        for k in (
+            "MONGODB_HOST",
+            "MONGODB_PORT",
+            "MONGODB_USERNAME",
+            "MONGODB_PASSWORD",
+            "MONGODB_OPTIONS",
+        )
+    ):
         return "configured"
     return "unconfigured"
 
@@ -241,11 +250,17 @@ def ping() -> Tuple[bool, Optional[str]]:
     """
     state = _configuration_state()
     if state == "unconfigured":
-        return False, "MongoDB is unconfigured; set MONGODB_URI or explicit parts to enable connectivity."
+        return (
+            False,
+            "MongoDB is unconfigured; set MONGODB_URI or explicit parts to enable connectivity.",
+        )
     try:
         client_db = _build_mongo_client()
         if client_db[0] is None:
-            return False, "MongoDB is unconfigured; set MONGODB_URI or explicit parts to enable connectivity."
+            return (
+                False,
+                "MongoDB is unconfigured; set MONGODB_URI or explicit parts to enable connectivity.",
+            )
         client, db_name = client_db  # type: ignore[misc]
         client.admin.command("ping")
         return True, None
