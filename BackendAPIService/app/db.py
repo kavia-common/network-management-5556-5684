@@ -142,12 +142,13 @@ def _build_mongo_client() -> Tuple[MongoClient, str]:
         kwargs["tls"] = True
 
     info = _effective_target_info(uri, timeout_ms, tls, db_name)
-    print(
-        "[MongoDB] Connect | "
-        f"uri={info['uri']} db={info['db_name']} "
-        f"tls={info['tls']} "
-        f"timeout_ms={info['timeout_ms']}"
-    )
+    # Use multiple concatenated f-strings to stay within line length limits for flake8 (E501)
+    # Compose message parts to comply with flake8 E501 (max line length 120)
+    uri_part = f"uri={info['uri']} "
+    db_part = f"db={info['db_name']} "
+    tls_part = f"tls={info['tls']} "
+    to_part = f"timeout_ms={info['timeout_ms']}"
+    print("[MongoDB] " + "Connect | " + uri_part + db_part + tls_part + to_part)
 
     client = MongoClient(uri, **kwargs)
     return client, db_name
@@ -259,10 +260,9 @@ def ping() -> Tuple[bool, Optional[str]]:
             uri = "mongodb://<error-building-uri>"
         info = _effective_target_info(uri, timeout_ms, tls, db_name)
         hint = "Verify MONGODB_URI, network access, credentials, TLS, and firewall rules."
-        return False, (
-            f"{str(e)} | target={info['uri']} "
-            f"db={info['db_name']} tls={info['tls']} "
-            f"timeout_ms={info['timeout_ms']} | hint: {hint}"
-        )
+        err_prefix = f"{str(e)} | target={info['uri']} "
+        err_mid = f"db={info['db_name']} tls={info['tls']} "
+        err_suf = f"timeout_ms={info['timeout_ms']} | hint: {hint}"
+        return False, (err_prefix + err_mid + err_suf)
 
 # Note: No eager initialization at import time. Lazy on first access only.

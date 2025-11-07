@@ -24,3 +24,11 @@ Setup:
 3) Run the app
    python run.py
    The API will listen on http://localhost:3001 (Flask default development server).
+
+4) Run tests with reports
+   cd BackendAPIService
+   pytest
+
+   Artifacts:
+   - JUnit XML: BackendAPIService/reports/junit/backend.xml
+   - HTML report: BackendAPIService/reports/html/backend/index.html

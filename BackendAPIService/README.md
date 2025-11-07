@@ -22,6 +22,29 @@ pip install -r requirements.txt
 Note: The app loads variables from a `.env` file automatically using `python-dotenv` if present.
 A default `.env` is provided with a safe placeholder for `MONGODB_URI` (local connection).
 
+## Running tests and reports
+
+Pytest is configured to generate reports by default.
+
+Run tests:
+```
+pytest
+```
+
+Artifacts:
+- JUnit XML: `reports/junit/backend.xml`
+- HTML report: `reports/html/backend/index.html` (self-contained HTML)
+
+Optional: To run a quiet test with reports explicitly (same as default):
+```
+pytest -q
+```
+
+If you use a task runner or make, create a script/alias like:
+```
+make test-report  # (if you add it to a Makefile)
+```
+
 ## Environment Variables
 
 Preferred single-URI configuration:
