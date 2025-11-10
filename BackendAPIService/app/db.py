@@ -84,7 +84,15 @@ def _ensure_indexes(db: Database) -> None:
 
 # PUBLIC_INTERFACE
 def get_client() -> MongoClient:
-    """Return a module-level singleton MongoClient, initialized from environment variables."""
+    """
+    Return a module-level singleton MongoClient, initialized from environment variables.
+
+    Lazy initialization note:
+    - To improve testability (e.g., with mongomock), the client is NOT created at import time.
+    - The first call to get_client()/get_db()/get_collection() will initialize the client.
+    - If you want to opt-in to eager initialization for specific deployments, set
+      environment variable DB_INIT_ON_IMPORT='true' and import this module.
+    """
     global _client, _db
     if _client is None:
         with _client_lock:
@@ -115,13 +123,15 @@ def get_collection(name: str) -> Collection:
     return get_db()[name]
 
 
-# Trigger client initialization optionally during import if MONGO_URI is present.
-# We avoid raising here when MONGO_URI is missing so app can still start in environments
-# where the database is not yet configured; actual DB access will raise if required.
-try:
-    if os.environ.get("MONGO_URI"):
-        get_client()
-except Exception:
-    # Swallow exceptions at import-time to not crash startup logs; real access will raise
-    # In a larger app, consider proper logging.
-    pass
+# Import-time initialization is disabled by default to avoid real connections during tests.
+# If you wish to eagerly initialize the client on import (e.g., certain deployments),
+# set DB_INIT_ON_IMPORT='true'. This remains opt-in and preserves lazy init by default.
+if os.environ.get("DB_INIT_ON_IMPORT", "").strip().lower() == "true":
+    try:
+        # Only attempt if MONGO_URI is present and flag is enabled
+        if os.environ.get("MONGO_URI"):
+            get_client()
+    except Exception:
+        # Swallow exceptions at import-time to not crash startup logs; real access will raise
+        # In a larger app, consider proper logging.
+        pass
