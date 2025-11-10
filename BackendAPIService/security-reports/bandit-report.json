@@ -1,6 +1,6 @@
 {
   "errors": [],
-  "generated_at": "2025-11-10T08:43:05Z",
+  "generated_at": "2025-11-10T08:44:55Z",
   "metrics": {
     "./app/__init__.py": {
       "CONFIDENCE.HIGH": 0,
