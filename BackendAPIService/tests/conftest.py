@@ -8,35 +8,36 @@ os.environ.setdefault("MONGO_DB_NAME", "test_network_devices")
 @pytest.fixture(autouse=True)
 def _patch_mongo(monkeypatch):
     """
-    Autouse fixture that patches pymongo.MongoClient with mongomock.MongoClient
+    Autouse fixture that patches app.db.MongoClient with mongomock.MongoClient
     so that all DB operations happen in-memory with no external dependency.
+    This ensures no real connections to localhost:27017 occur during tests.
     """
     try:
         import mongomock  # type: ignore
     except Exception as e:
         pytest.skip(f"mongomock not installed: {e}")
 
-    from pymongo import mongo_client as _mongo_client_mod
-
     # Create a single mongomock client instance per test (fresh per test function).
     mm_client = mongomock.MongoClient()
 
-    def fake_mongo_client(uri, **kwargs):
+    def fake_mongo_client(uri=None, **kwargs):  # match signature loosely
         # ignore uri and kwargs; return the mongomock client
         return mm_client
 
-    # Patch the constructor used by app.db._build_mongo_client() which imports MongoClient from pymongo
-    monkeypatch.setattr(_mongo_client_mod, "MongoClient", fake_mongo_client, raising=True)
+    # Ensure deterministic env for TLS flag
     monkeypatch.setenv("MONGO_TLS", "false")
 
-    # Also clear any cached client in app.db to ensure fresh state
+    # Reload app.db to make sure we patch the exact symbol used by the application code.
     import importlib
     import app.db as app_db
     importlib.reload(app_db)
 
+    # Patch the exact symbol app.db.MongoClient so that _build_mongo_client uses our fake.
+    monkeypatch.setattr(app_db, "MongoClient", fake_mongo_client, raising=True)
+
     yield
 
-    # cleanup
+    # cleanup: reload app_db to clear any cached singletons between tests
     importlib.reload(app_db)
 
 
