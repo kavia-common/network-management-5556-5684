@@ -13,7 +13,6 @@ from app.schemas import (
     DeviceCreateSchema,
     DeviceUpdateSchema,
     DeviceOutSchema,
-    DeviceListOutSchema,
 )
 
 blp = Blueprint(
@@ -76,7 +75,6 @@ def _safe_ping(ip: str) -> Tuple[str, Optional[datetime]]:
 
 @blp.route("")
 class DevicesList(MethodView):
-    @blp.response(200, DeviceListOutSchema, description="List devices (paginated if page/limit provided)")
     def get(self):
         """
         List devices.
