@@ -38,6 +38,18 @@ After the run completes:
 - Open htmlcov/index.html to explore detailed coverage.
 
 ## Option A: Using pytest-cov (recommended)
+
+### What does --cov=app mean?
+The value app refers to the Python package directory that contains the backend source code (the folder named app under BackendAPIService). When you pass --cov=app, pytest-cov measures coverage only for modules inside that package, ignoring third-party libraries and other unrelated files.
+
+- If your source package is renamed or moved, update this argument accordingly. For example, if you rename app to backend:
+  ```
+  pytest --cov=backend --cov-report=term-missing --cov-report=html
+  ```
+- You can target multiple packages by repeating the argument:
+  ```
+  pytest --cov=app --cov=another_pkg --cov-report=term-missing
+  ```
 Run tests with coverage summary and reports. Use these explicit commands if you want to override the defaults in pytest.ini.
 
 - Run all tests with terminal summary only:
@@ -77,6 +89,22 @@ You can invoke coverage to run pytest and then produce reports. This is useful w
 - Erase previous coverage data (optional but recommended between runs):
   ```
   coverage erase
+  ```
+  What does this do?
+  - coverage erase removes the cached coverage data file(s), typically .coverage and any parallel data files like .coverage.*. This ensures you start from a clean slate so that new reports do not include results from prior runs.
+
+  When should you use it?
+  - Before switching branches where code layout changed significantly.
+  - When you want to ensure the report only reflects the current test session.
+  - If you moved/renamed modules and see unexpected files lingering in the HTML report.
+
+  Brief example:
+  ```
+  # Clean old data, rerun tests, and regenerate reports
+  coverage erase
+  coverage run --source=app -m pytest
+  coverage report -m
+  coverage html
   ```
 
 - Run tests under coverage:
