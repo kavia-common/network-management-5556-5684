@@ -6,11 +6,12 @@ Generated files:
 - bandit-report.json — Full Bandit findings in JSON format (machine-readable).
 
 Commands executed from BackendAPIService/:
-- bandit -q -r . -f json -o security-reports/bandit-report.json
-- Attempted: bandit -q -r . -f sarif -o security-reports/bandit-report.sarif
+- bandit -r . -f json -o security-reports/bandit-report.json
+- Attempted: bandit -r . -f sarif -o security-reports/bandit-report.sarif
 
 SARIF note:
-- The installed Bandit version (as of execution) does not support SARIF output. A status marker file security-reports/.sarif_status was created indicating SARIF_UNSUPPORTED.
+- The installed Bandit version (1.8.6 at execution time) does not support SARIF output. The CLI returned: "invalid choice: 'sarif' (choose from 'csv', 'custom', 'html', 'json', 'screen', 'txt', 'xml', 'yaml')".
+- As a result, no SARIF file was generated. JSON report is available at security-reports/bandit-report.json.
 - If SARIF is required for CI, consider:
   - Converting the JSON report to SARIF using a converter tool, or
-  - Running Bandit via a wrapper that emits SARIF.
+  - Running Bandit via a wrapper or GitHub Action that emits SARIF.
