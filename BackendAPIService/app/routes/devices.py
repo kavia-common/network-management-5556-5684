@@ -3,7 +3,7 @@ from datetime import datetime
 from typing import Any, Dict, Optional, Tuple
 
 from bson import ObjectId
-from flask import request
+from flask import request, jsonify
 from flask.views import MethodView
 from flask_smorest import Blueprint, abort
 from pymongo.errors import DuplicateKeyError
@@ -122,7 +122,8 @@ class DevicesList(MethodView):
         try:
             res = coll.insert_one(doc)
         except DuplicateKeyError:
-            abort(400, error={"field": "ip_address", "message": "already exists"})
+            # Return explicit JSON error payload for duplicate ip_address
+            return jsonify({"error": {"field": "ip_address", "message": "already exists"}}), 400
         created = coll.find_one({"_id": res.inserted_id})
         return created
 
@@ -152,7 +153,8 @@ class DeviceItem(MethodView):
                 return_document=True,  # type: ignore[arg-type]
             )
         except DuplicateKeyError:
-            abort(400, error={"field": "ip_address", "message": "already exists"})
+            # Return explicit JSON error payload for duplicate ip_address
+            return jsonify({"error": {"field": "ip_address", "message": "already exists"}}), 400
         if not res:
             abort(404, message="Device not found")
         return res
