@@ -17,7 +17,7 @@ def assert_device_shape(doc):
     # minimal shape checks
     assert set(["id", "name", "ip_address", "type", "location", "status", "created_at", "updated_at"]).issubset(set(doc.keys()))
     # ISO8601 datetime strings expected from marshmallow serialization
-    iso_dt = re.compile(r"\\d{4}-\\d{2}-\\d{2}T")
+    iso_dt = re.compile(r"\d{4}-\d{2}-\d{2}T")
     assert iso_dt.search(doc["created_at"])
     assert iso_dt.search(doc["updated_at"])
 
