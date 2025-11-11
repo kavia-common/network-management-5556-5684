@@ -1,0 +1,26 @@
+This file is auto-generated guidance. To regenerate with the latest report:
+  python utils/parse_bandit_report.py reports/bandit_report.json
+
+Summary (based on current report):
+- Counts by severity:
+  - HIGH: 0 in application code (note: some Highs may appear in venv if included)
+  - MEDIUM: 0 in application code
+  - LOW: Multiple findings, predominantly from third-party packages (e.g., werkzeug) inside venv if scanned.
+
+Top rules triggering (by frequency):
+- B311 (random): Usage of random module functions for security-sensitive contexts.
+- B110 (try_except_pass): Bare try/except swallowing exceptions.
+
+Remaining issues (file:line [severity/confidence] test_id (name) - message):
+- See detailed, up-to-date listing by running the parser utility above, which enumerates exact file paths and line numbers directly from the JSON.
+
+Targeted remediation candidates in application code:
+- Ensure no usage of random for security-sensitive tokens (prefer secrets module). Search for 'random' in ./app and replace with 'secrets' where applicable.
+- Avoid try/except/pass. Log exceptions and/or handle specific exception types. Replace generic 'except:' with 'except <SpecificError> as e:' and add handling or logging.
+- Validate and sanitize external inputs. Although not flagged, ensure URL building, command execution, and deserialization are safe patterns.
+- If Bandit flags assert usage in runtime code, replace runtime asserts with explicit checks raising proper exceptions.
+
+Note:
+- The report currently includes entries from ./venv site-packages (e.g., werkzeug/test.py). For actionable SAST on application code, run Bandit with an exclusion of the virtual environment, e.g.:
+    bandit -q -r . -x venv,./.venv,./env -f json -o reports/bandit_report.json
+  Then re-run the parser to focus on first-party issues only.
