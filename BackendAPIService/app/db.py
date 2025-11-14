@@ -110,14 +110,10 @@ def get_client() -> MongoClient:
 
 # PUBLIC_INTERFACE
 def get_db() -> Database:
-    """Return the default Database instance, initializing the client if needed.
-
-    Uses explicit runtime check instead of assert to be safe in optimized bytecode.
-    """
+    """Return the default Database instance, initializing the client if needed."""
     if _db is None:
         get_client()  # ensures _db is set
-    if _db is None:
-        raise RuntimeError("Database client is not initialized")
+    assert _db is not None  # for type checkers
     return _db
 
 
@@ -135,6 +131,7 @@ if os.environ.get("DB_INIT_ON_IMPORT", "").strip().lower() == "true":
         # Only attempt if MONGO_URI is present and flag is enabled
         if os.environ.get("MONGO_URI"):
             get_client()
-    except (RuntimeError, Exception):
-        # Avoid raising during import; real access via get_db() will surface errors.
-        _ = None  # explicit no-op to satisfy Bandit instead of bare pass
+    except Exception:
+        # Swallow exceptions at import-time to not crash startup logs; real access will raise
+        # In a larger app, consider proper logging.
+        pass

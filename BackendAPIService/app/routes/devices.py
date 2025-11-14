@@ -62,15 +62,13 @@ def _safe_ping(ip: str) -> Tuple[str, Optional[datetime]]:
             if s.connect_ex((ip, port)) == 0:
                 s.close()
                 return "online", last
-        except (socket.timeout, OSError):
-            # treat as failed attempt and continue trying other common ports
-            ...
+        except Exception:
+            pass
         finally:
             try:
                 s.close()
-            except OSError:
-                # ignore close errors
-                ...
+            except Exception:
+                pass
     # No connection succeeded: unknown if host is firewalled; mark offline
     return "offline", last
 
