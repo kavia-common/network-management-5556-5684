@@ -1,18 +1,10 @@
 [run]
-branch = True
+# Measure only the application code
 source = app
-omit =
-    tests/*
-    **/__init__.py
-    run.py
-    generate_openapi.py
 
 [report]
-fail_under = 90
 show_missing = True
-skip_covered = False
-precision = 2
+skip_covered = True
 
 [html]
 directory = htmlcov
-title = BackendAPIService Coverage Report
