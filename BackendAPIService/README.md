@@ -47,26 +47,20 @@ make test-report  # (if you add it to a Makefile)
 
 ## Environment Variables
 
-Preferred single-URI configuration:
-- MONGODB_URI (preferred)
+MongoDB configuration (strict per task):
+- MONGODB_URI (required to enable DB access)
   - MongoDB connection URI. Works with Atlas `mongodb+srv://` or standard `mongodb://`.
-  - Example (Local): `mongodb://localhost:27017/network`
-  - Example (Atlas): `mongodb+srv://<user>:<pass>@cluster0.mongodb.net/network?retryWrites=true&w=majority&appName=myapp`
-  - If your URI includes a database path segment (e.g., `/network`), that DB will be used unless you explicitly set MONGODB_DB_NAME to override it.
-
-Common settings:
-- MONGODB_DB_NAME (optional, default: `network`)
-  - Overrides the database name even if the MONGODB_URI contains a DB path.
-- MONGODB_COLLECTION (optional, default: `device`) — collection used by the app; indexes are created here
-- MONGODB_TLS (optional, `true` enables TLS)
-- MONGODB_CONNECT_TIMEOUT_MS (optional, default: `5000`)
-
-Fallback individual settings (used only if MONGODB_URI is not set and at least one part is provided):
-- MONGODB_HOST (default: `localhost`)
-- MONGODB_PORT (default: `27017`)
-- MONGODB_USERNAME (optional)
-- MONGODB_PASSWORD (optional)
-- MONGODB_OPTIONS (optional, query string without leading `?`, e.g. `replicaSet=rs0&authSource=admin`)
+  - Example (Local): `mongodb://localhost:27017`
+  - Example (Atlas): `mongodb+srv://<user>:<pass>@cluster0.mongodb.net/?retryWrites=true&w=majority&appName=myapp`
+- The application will always use:
+  - database name: `network_devices`
+  - collection name: `devices`
+- Indexes ensured on startup (first DB access):
+  - Unique index on `ip_address`
+  - Secondary indexes on `type` and `status`
+- Optional:
+  - MONGODB_TLS (`true`/`false`)
+  - MONGODB_CONNECT_TIMEOUT_MS (default `5000`)
 
 ## CORS / Frontend integration
 
@@ -169,7 +163,7 @@ device = devices.find_one({"ip_address": "192.168.1.10"})
 - POST `/devices` — Create a device
   - Body: `{ name, ip_address (IPv4), type (router|switch|server), location, status (online|offline|unknown) }`
   - On validation error: `400` with `{"status":"Bad Request","message":"Validation failed","errors":{...}}`
-  - On duplicate `ip_address`: `409` with `{ "error": { "field": "ip_address", "message": "already exists" } }`
+  - On duplicate `ip_address`: `409` with `{ "error": { "field": "ip_address", "message": "already exists" } }` (unique index enforced)
 - GET `/devices/{id}` — Retrieve a device by id
 - PUT `/devices/{id}` — Update fields of a device (all optional)
   - Same validation rules as create; uniqueness enforced on `ip_address`
