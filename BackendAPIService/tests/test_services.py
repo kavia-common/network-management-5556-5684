@@ -47,6 +47,7 @@ def test_serialize_device_and_devices():
     }
     out = serialize_device(doc)
     assert out["id"] == "65f5c751f0bb75b9e1f8a111"
-    assert re.search(r"\\d{4}-\\d{2}-\\d{2}T", out["created_at"])
+    # Correct ISO8601 regex (raw string with single backslashes)
+    assert re.search(r"\d{4}-\d{2}-\d{2}T", out["created_at"])
     many = serialize_devices([doc])
     assert isinstance(many, list) and many and many[0]["id"] == out["id"]
