@@ -1,0 +1,31 @@
+# Bandit configuration for BackendAPIService (Flask)
+#
+# Example usage:
+#   bandit -r . -c .bandit -f json -o bandit-report.json
+#
+# Policy:
+# - Scan recursively
+# - Fail CI on High severity with at least medium confidence
+# - Skip known noisy checks (e.g., assert statements in test code)
+
+[bandit]
+targets: .
+recursive: True
+skips: B101  # assert statements: noisy in tests; prefer explicit checks. Use pytest assertions in tests.
+severity: all
+confidence: all
+# Exclusions: migrations or tests can be excluded if desired; here we exclude none by default to keep visibility.
+# To exclude patterns, uncomment and add relative paths:
+# exclude: tests, migrations
+
+[formatters]
+# Supported: csv, html, json, txt, xml
+# SARIF may not be supported by your Bandit version.
+
+[baseline]
+# Bandit does not maintain a baseline file natively; track current reports under security-reports/ and compare in CI.
+
+[thresholds]
+# These are documentation comments; thresholds enforced via CLI flags:
+#   --severity-level high --confidence-level medium
+
